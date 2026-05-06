@@ -3440,10 +3440,10 @@ PrefabInstance:
       addedObject: {fileID: 1739756540}
     - targetCorrespondingSourceObject: {fileID: 383674549258538840, guid: 0227f316bde71754081547553f194b96, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1739756546}
+      addedObject: {fileID: 1739756545}
     - targetCorrespondingSourceObject: {fileID: 383674549258538840, guid: 0227f316bde71754081547553f194b96, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1739756545}
+      addedObject: {fileID: 1739756546}
   m_SourcePrefab: {fileID: 100100000, guid: 0227f316bde71754081547553f194b96, type: 3}
 --- !u!1 &889740948
 GameObject:
@@ -6148,7 +6148,7 @@ MonoBehaviour:
   m_Model: {fileID: 0}
   m_InferenceDevice: 0
   m_BehaviorType: 0
-  m_BehaviorName: SkillIntro
+  m_BehaviorName: SkillIntro_VsMelee
   TeamId: 0
   m_UseChildSensors: 1
   m_UseChildActuators: 1
@@ -6351,13 +6351,78 @@ MonoBehaviour:
   m_GameObject: {fileID: 1739756520}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd32804eba4c8144d99f755b5a74e443, type: 3}
+  m_Script: {fileID: 11500000, guid: 6d11e9b3c0a95204e8692b21056672dd, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SkillIntroAgent
+  m_EditorClassIdentifier: Assembly-CSharp::SpecializedBossAgent
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
   MaxStep: 8000
+  _preset: 0
+  _vsMeleeProfile:
+    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60001ab0123456789cde1, type: 2}
+    MoveGraph: {fileID: 4186811738917985622, guid: fa27213a173a42fca32ed38494101c63, type: 2}
+    DangerRange: 8
+    OptimalMin: 10
+    OptimalMax: 16
+    FleeDistance: 6
+    FlankRadius: 13
+    StrafeRadius: 13
+    StrafeAngleStep: 25
+    MinSpacing: 5
+    AttackRangeMin: 8
+    AttackRangeMax: 15
+    SafeRangeMin: 14
+    SafeRangeMax: 20
+    MinFlankAngle: 60
+  _vsRangedProfile:
+    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60002ab0123456789cde2, type: 2}
+    MoveGraph: {fileID: 4186811738917985622, guid: 5459bb6c7c7449a9848805de9744b0b0, type: 2}
+    DangerRange: 15
+    OptimalMin: 30
+    OptimalMax: 40
+    FleeDistance: 10
+    FlankRadius: 35
+    StrafeRadius: 35
+    StrafeAngleStep: 15
+    MinSpacing: 8
+    AttackRangeMin: 25
+    AttackRangeMax: 40
+    SafeRangeMin: 35
+    SafeRangeMax: 45
+    MinFlankAngle: 90
+  _vsHybridProfile:
+    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60003ab0123456789cde3, type: 2}
+    MoveGraph: {fileID: 4186811738917985622, guid: 899951f6215849228b061ff5f856326b, type: 2}
+    DangerRange: 12
+    OptimalMin: 18
+    OptimalMax: 28
+    FleeDistance: 8
+    FlankRadius: 22
+    StrafeRadius: 22
+    StrafeAngleStep: 20
+    MinSpacing: 6
+    AttackRangeMin: 14
+    AttackRangeMax: 29
+    SafeRangeMin: 24
+    SafeRangeMax: 34
+    MinFlankAngle: 90
+  _vsCCProfile:
+    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60004ab0123456789cde4, type: 2}
+    MoveGraph: {fileID: 4186811738917985622, guid: 0e72a85d1c6644b99daed9423ed0b678, type: 2}
+    DangerRange: 12
+    OptimalMin: 22
+    OptimalMax: 32
+    FleeDistance: 8
+    FlankRadius: 28
+    StrafeRadius: 28
+    StrafeAngleStep: 18
+    MinSpacing: 7
+    AttackRangeMin: 18
+    AttackRangeMax: 32
+    SafeRangeMin: 28
+    SafeRangeMax: 38
+    MinFlankAngle: 69
   _moveSpeed: 10
   _rotationSpeed: 200
   _bossSpawnPoint: {fileID: 2061452137}
@@ -6368,86 +6433,25 @@ MonoBehaviour:
   - {fileID: 578593650}
   - {fileID: 1332013078}
   - {fileID: 889740949}
-  _bossController: {fileID: 0}
-  _collector: {fileID: 0}
-  _trainingSkillManager: {fileID: 0}
-  _skillManager: {fileID: 0}
-  _skillExecutor: {fileID: 0}
+  _bossController: {fileID: 1739756521}
+  _collector: {fileID: 1739756544}
+  _trainingSkillManager: {fileID: 1739756545}
+  _skillManager: {fileID: 1739756540}
+  _skillExecutor: {fileID: 1739756541}
   _p1TrainingSkillMgr: {fileID: 2004071447}
   _p2TrainingSkillMgr: {fileID: 1994669195}
   _bossSkillPools:
   - {fileID: 11400000, guid: a1b2c3d4e5f60005ab0123456789cde5, type: 2}
   - {fileID: 11400000, guid: a1b2c3d4e5f60006ab0123456789cde6, type: 2}
   - {fileID: 11400000, guid: a1b2c3d4e5f60007ab0123456789cde7, type: 2}
-  _playerProfiles:
-  - SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60001ab0123456789cde1, type: 2}
-    MoveGraph: {fileID: 4186811738917985622, guid: fa27213a173a42fca32ed38494101c63, type: 2}
-    DangerRange: 8
-    OptimalMin: 10
-    OptimalMax: 18
-    FleeDistance: 8
-    FlankRadius: 12
-    StrafeRadius: 12
-    StrafeAngleStep: 30
-    MinSpacing: 6
-    AttackRangeMin: 10
-    AttackRangeMax: 18
-    SafeRangeMin: 10
-    SafeRangeMax: 18
-    MinFlankAngle: 0
-  - SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60002ab0123456789cde2, type: 2}
-    MoveGraph: {fileID: 4186811738917985622, guid: 5459bb6c7c7449a9848805de9744b0b0, type: 2}
-    DangerRange: 15
-    OptimalMin: 25
-    OptimalMax: 38
-    FleeDistance: 12
-    FlankRadius: 30
-    StrafeRadius: 30
-    StrafeAngleStep: 15
-    MinSpacing: 6
-    AttackRangeMin: 16
-    AttackRangeMax: 25
-    SafeRangeMin: 35
-    SafeRangeMax: 45
-    MinFlankAngle: 0
-  - SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60003ab0123456789cde3, type: 2}
-    MoveGraph: {fileID: 4186811738917985622, guid: 899951f6215849228b061ff5f856326b, type: 2}
-    DangerRange: 10
-    OptimalMin: 15
-    OptimalMax: 25
-    FleeDistance: 10
-    FlankRadius: 20
-    StrafeRadius: 20
-    StrafeAngleStep: 25
-    MinSpacing: 6
-    AttackRangeMin: 12
-    AttackRangeMax: 20
-    SafeRangeMin: 22
-    SafeRangeMax: 30
-    MinFlankAngle: 0
-  - SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60004ab0123456789cde4, type: 2}
-    MoveGraph: {fileID: 4186811738917985622, guid: 0e72a85d1c6644b99daed9423ed0b678, type: 2}
-    DangerRange: 12
-    OptimalMin: 18
-    OptimalMax: 28
-    FleeDistance: 10
-    FlankRadius: 22
-    StrafeRadius: 22
-    StrafeAngleStep: 20
-    MinSpacing: 6
-    AttackRangeMin: 18
-    AttackRangeMax: 28
-    SafeRangeMin: 18
-    SafeRangeMax: 28
-    MinFlankAngle: 60
   _statsLogInterval: 50
-  _proximityRadius: 0
-  _touchReward: 0
-  _fastDoubleTouchBonus: 0
-  _doubleTouchWindow: 0
+  _proximityRadius: 5
+  _touchReward: 0.2
+  _fastDoubleTouchBonus: 0.3
+  _doubleTouchWindow: 3
   _touchEndEnabled: 0
-  _noTouchPenalty: 0
-  _partialTouchPenalty: 0
+  _noTouchPenalty: -0.5
+  _partialTouchPenalty: -0.2
   _wStepPenalty: 0.001
   _wFireReward: 0
   _wMissPenalty: 0.05
@@ -6455,16 +6459,20 @@ MonoBehaviour:
   _wDamageReward: 0.5
   _wShieldDamageReward: 0.3
   _wHitReward: 0.2
-  _wProgress: 0.1
+  _wProgress: 0.3
   _wAlign: 0.003
   _wIdlePenalty: 0.005
   _alignDotThreshold: 0.7
   _minMoveDelta: 0.05
   _wRangeMaintain: 0.1
   _rangeTolerance: 2
+  _wCounterAttack: 0
+  _wCloseAlignBonus: 0
+  _wRetreatPenalty: 0
+  _counterAttackWindow: 1
   _wWallHitPenalty: 0.05
   _wWallStayPenalty: 0.01
-  _episodeMaxDuration: 90
+  _episodeMaxDuration: 60
   _outOfBoundsY: -5
   _outOfBoundsPenalty: -1
   _bossDiedPenalty: 1
@@ -7034,7 +7042,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.5
-  m_Speed: 15
+  m_Speed: 12
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
@@ -7468,7 +7476,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.1
-  m_Speed: 15
+  m_Speed: 12
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120

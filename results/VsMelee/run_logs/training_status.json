@@ -1,0 +1,38 @@
+{
+    "SkillIntro_VsMelee": {
+        "checkpoints": [
+            {
+                "steps": 6958,
+                "file_path": "results\\VsMelee\\SkillIntro_VsMelee\\SkillIntro_VsMelee-6958.onnx",
+                "reward": 4.816140188574791,
+                "creation_time": 1777781314.074082,
+                "auxillary_file_paths": [
+                    "results\\VsMelee\\SkillIntro_VsMelee\\SkillIntro_VsMelee-6958.pt"
+                ]
+            },
+            {
+                "steps": 3419305,
+                "file_path": "results\\VsMelee\\SkillIntro_VsMelee\\SkillIntro_VsMelee-3419305.onnx",
+                "reward": -92.80808913707733,
+                "creation_time": 1777801717.616264,
+                "auxillary_file_paths": [
+                    "results\\VsMelee\\SkillIntro_VsMelee\\SkillIntro_VsMelee-3419305.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 3419305,
+            "file_path": "results\\VsMelee\\SkillIntro_VsMelee.onnx",
+            "reward": -92.80808913707733,
+            "creation_time": 1777801717.616264,
+            "auxillary_file_paths": [
+                "results\\VsMelee\\SkillIntro_VsMelee\\SkillIntro_VsMelee-3419305.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.2.2+cu121"
+    }
+}

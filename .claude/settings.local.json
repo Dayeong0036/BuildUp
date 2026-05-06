@@ -7,6 +7,7 @@
       "Glob",
       "Grep",
       "Bash",
+      "PowerShell",
       "mcp__mcp-unity__get_scene_info",
       "mcp__mcp-unity__get_gameobject",
       "mcp__mcp-unity__update_component",
@@ -36,11 +37,19 @@
       "mcp__mcp-unity__scale_gameobject",
       "mcp__mcp-unity__select_gameobject",
       "mcp__mcp-unity__unload_scene",
-      "Read(//c/Users/paek6/.claude/projects/c--Users-paek6-Downloads-Buildup-Buildup/3506f6b2-695e-44c7-900d-92aae1de44a7/**)",
+      "mcp__mcp-unity__update_gameobject",
       "Skill(update-config)",
       "Skill(update-config:*)",
-      "mcp__mcp-unity__update_gameobject",
-      "PowerShell(pip uninstall numpy -y)"
+      "WebFetch(domain:mitcommlab.mit.edu)",
+      "WebFetch(domain:w3.cs.jmu.edu)",
+      "WebFetch(domain:pmc.ncbi.nlm.nih.gov)",
+      "WebFetch(domain:www.editage.co.kr)",
+      "WebFetch(domain:www.jinhakpro.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.kiit.or.kr)",
+      "WebFetch(domain:kiit.or.kr)",
+      "WebFetch(domain:ki-it.or.kr)",
+      "WebFetch(domain:dbpiaone.com)"
     ]
   }
 }

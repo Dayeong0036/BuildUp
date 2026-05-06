@@ -28,8 +28,8 @@ MonoBehaviour:
   DefenseUpMultiplier: 1
   VulnerabilityBonus: 0
   ReflectRatio: 0
-  BossMaxHP: 2000
-  BossCurrentHP: 2000
+  BossMaxHP: 5000
+  BossCurrentHP: 5000
   BossBaseDamage: 50
   BossBaseDefense: 20
   BossPhaseThresholds: []

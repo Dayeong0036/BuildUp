@@ -1,0 +1,65 @@
+{
+    "SkillIntro_VsRanged": {
+        "checkpoints": [
+            {
+                "steps": 999987,
+                "file_path": "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-999987.onnx",
+                "reward": 25.63223697245121,
+                "creation_time": 1777670783.5667682,
+                "auxillary_file_paths": [
+                    "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-999987.pt"
+                ]
+            },
+            {
+                "steps": 1499991,
+                "file_path": "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-1499991.onnx",
+                "reward": 25.536455392837524,
+                "creation_time": 1777677110.5640914,
+                "auxillary_file_paths": [
+                    "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-1499991.pt"
+                ]
+            },
+            {
+                "steps": 1999978,
+                "file_path": "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-1999978.onnx",
+                "reward": 26.53086355090141,
+                "creation_time": 1777683443.8955863,
+                "auxillary_file_paths": [
+                    "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-1999978.pt"
+                ]
+            },
+            {
+                "steps": 2499945,
+                "file_path": "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-2499945.onnx",
+                "reward": 26.172733534375826,
+                "creation_time": 1777689770.515314,
+                "auxillary_file_paths": [
+                    "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-2499945.pt"
+                ]
+            },
+            {
+                "steps": 2751526,
+                "file_path": "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-2751526.onnx",
+                "reward": 27.035876896592878,
+                "creation_time": 1777693022.467378,
+                "auxillary_file_paths": [
+                    "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-2751526.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 2751526,
+            "file_path": "results\\VsRanged\\SkillIntro_VsRanged.onnx",
+            "reward": 27.035876896592878,
+            "creation_time": 1777693022.467378,
+            "auxillary_file_paths": [
+                "results\\VsRanged\\SkillIntro_VsRanged\\SkillIntro_VsRanged-2751526.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.2.2+cu121"
+    }
+}

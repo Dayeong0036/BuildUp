@@ -62,13 +62,13 @@ public static class SkillLibrary
                 SpawnPersistentArea(4f, 7.6f, AreaShape.Circle, 1f,
                     tick =>
                     {
-                        ApplyDamageOverTime(1f, 8f).Invoke(tick);
+                        ApplyDamageOverTime(1f, 7f).Invoke(tick);
                         ApplyAntiHeal(1f, 0.20f).Invoke(tick);
                     }
                 ).Invoke(impact);
 
                 SpawnPersistentArea(4f, 20.4f, AreaShape.Circle, 1f,
-                    tick => ApplyDamageOverTime(1f, 8f).Invoke(tick)
+                    tick => ApplyDamageOverTime(1f, 7f).Invoke(tick)
                 ).Invoke(impact);
             }
         );
@@ -78,7 +78,7 @@ public static class SkillLibrary
         LaunchProjectile(22f, 48f, false,
             hit =>
             {
-                DealDamage(80f).Invoke(hit);
+                DealDamage(68f).Invoke(hit);
                 ApplyDebuff(4f, DebuffType.Mark, 1f).Invoke(hit);
             }
         );
@@ -119,7 +119,7 @@ public static class SkillLibrary
         LaunchProjectile(20f, 48f, false,
             hit =>
             {
-                DealDamage(70f).Invoke(hit);
+                DealDamage(60f).Invoke(hit);
                 ApplyHitStun(0.08f).Invoke(hit);
                 ApplySilence(0.5f).Invoke(hit);
             }
@@ -177,7 +177,7 @@ public static class SkillLibrary
             hit =>
             {
                 ApplyDefenseDown(3f, 8f).Invoke(hit);
-                DealDamage(165f).Invoke(hit);
+                DealDamage(140f).Invoke(hit);
             }
         );
 
@@ -188,7 +188,7 @@ public static class SkillLibrary
             hit =>
             {
                 ApplyVulnerability(3f, 0.10f).Invoke(hit);
-                DealDamage(135f).Invoke(hit);
+                DealDamage(115f).Invoke(hit);
             }
         );
 

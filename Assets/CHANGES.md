@@ -5,6 +5,31 @@
 
 ---
 
+## 플레이스타일 특화 보스 에이전트 (SpecializedBossAgent)
+**경로:** `Assets/Scripts/AI/BossAI/Agents/SpecializedBossAgent.cs` (신규)
+**변경일:** 2026-04-30 (VsMelee 튜닝: 2026-05-03)
+
+### 변경 사유
+- 범용 SkillIntroAgent의 단일 보상 체계로는 플레이스타일별 최적 대응 학습 한계 (46.5% 승률에서 수렴 정체)
+- 플레이어 유형(근접/원거리/하이브리드/CC)마다 보스가 다른 보상 가중치로 특화 학습 필요
+
+### 변경 내용
+- **SpecializedBossAgent.cs** (신규) — SkillIntroAgent 전체 로직 복사 + 특화 기능 추가
+  - `RewardPreset` enum: VsMelee / VsRanged / VsHybrid / VsCC 4종 드롭다운
+  - 4개 전용 `PlayerProfile` 필드 (`_vsMeleeProfile`, `_vsRangedProfile`, `_vsHybridProfile`, `_vsCCProfile`) — 배열 인덱스 대신 명시적 필드 사용 (Codex 피드백 반영)
+  - `ApplyPreset()` — 프리셋별 하드코딩 보상 가중치 적용, `OnEpisodeBegin`에서 `AssignPools()` 이전 호출
+  - `GetPresetProfile()` — switch 표현식으로 프리셋에 맞는 프로파일 반환
+  - `AssignPools()` — 랜덤 선택 대신 프리셋 프로파일 사용, P1/P2 동일 프로파일 적용
+  - 관측값(55), 행동(2 브랜치), 데이터 수집(43 컬럼) 로직은 SkillIntroAgent와 동일
+- **학습 설정:** `results/VsHybrid/`, `results/VsCc/` 컨피그 생성, `initialize_from: SkillIntro_Comprehensive`로 가중치 전이
+
+### VsMelee 프리셋 특화 튜닝 (2026-05-03)
+- **변경 사유:** VsMelee 프리셋이 기본값 수준으로 근접 매치업 특화 안 됨. Codex 교차 검증 후 조정 적용.
+- **핵심 방향:** 반격/정렬/후퇴억제 중심 특화
+- **변경 값:** CounterAttack 0.08→0.12, Progress 0.15→0.10, Align 0.005→0.006, CloseAlignBonus 0.002→0.005, RetreatPenalty 0.003→0.006, touchReward 0.2→0.15, OutOfRangePenalty 0.1→0.08, rangeTolerance 3→3.5, DamageReward 0.7→0.75, ShieldDamageReward 0.3→0.35, HitReward 0.3→0.35, StepPenalty 0.0005→0.0003, FireReward 0.05→0.06, MissPenalty 0.03→0.05, IdlePenalty 0.003→0.008, RangeMaintain 0.2→0.15, playerKilledReward 0.5→0.6
+
+---
+
 ## 플레이스타일별 BehaviorGraph 노드 분화 + 거리 전환 / 협공 각도 시스템
 **경로:** `Assets/Scripts/AI/Player/DoubleMove/AdjustRangeBySkillState.cs` (신규), `Assets/Scripts/AI/Player/DoubleMove/IsFlankAngleLowCondition.cs` (신규), `Assets/Scripts/AI/BossAI/Agents/SkillIntroAgent.cs`, `Assets/Scripts/AI/Player/Combat/PlayerBotCombatInit.cs`
 **변경일:** 2026-04-27

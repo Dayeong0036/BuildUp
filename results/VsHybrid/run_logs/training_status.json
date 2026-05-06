@@ -1,0 +1,38 @@
+{
+    "SkillIntro_VsHybrid": {
+        "checkpoints": [
+            {
+                "steps": 202266,
+                "file_path": "results\\VsHybrid\\SkillIntro_VsHybrid\\SkillIntro_VsHybrid-202266.onnx",
+                "reward": 15.845863565802574,
+                "creation_time": 1777561236.522195,
+                "auxillary_file_paths": [
+                    "results\\VsHybrid\\SkillIntro_VsHybrid\\SkillIntro_VsHybrid-202266.pt"
+                ]
+            },
+            {
+                "steps": 3125462,
+                "file_path": "results\\VsHybrid\\SkillIntro_VsHybrid\\SkillIntro_VsHybrid-3125462.onnx",
+                "reward": 13.216364860534668,
+                "creation_time": 1777563360.1973348,
+                "auxillary_file_paths": [
+                    "results\\VsHybrid\\SkillIntro_VsHybrid\\SkillIntro_VsHybrid-3125462.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 3125462,
+            "file_path": "results\\VsHybrid\\SkillIntro_VsHybrid.onnx",
+            "reward": 13.216364860534668,
+            "creation_time": 1777563360.1973348,
+            "auxillary_file_paths": [
+                "results\\VsHybrid\\SkillIntro_VsHybrid\\SkillIntro_VsHybrid-3125462.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.2.2+cu121"
+    }
+}

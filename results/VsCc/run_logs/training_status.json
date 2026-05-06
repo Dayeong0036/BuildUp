@@ -1,0 +1,65 @@
+{
+    "SkillIntro_VsCC": {
+        "checkpoints": [
+            {
+                "steps": 3499990,
+                "file_path": "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-3499990.onnx",
+                "reward": 0.5522077033917109,
+                "creation_time": 1777571668.75628,
+                "auxillary_file_paths": [
+                    "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-3499990.pt"
+                ]
+            },
+            {
+                "steps": 3999941,
+                "file_path": "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-3999941.onnx",
+                "reward": 2.23727667927742,
+                "creation_time": 1777577985.2763207,
+                "auxillary_file_paths": [
+                    "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-3999941.pt"
+                ]
+            },
+            {
+                "steps": 4499992,
+                "file_path": "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-4499992.onnx",
+                "reward": 5.029391857293936,
+                "creation_time": 1777584301.069224,
+                "auxillary_file_paths": [
+                    "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-4499992.pt"
+                ]
+            },
+            {
+                "steps": 4999941,
+                "file_path": "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-4999941.onnx",
+                "reward": 6.423085348473655,
+                "creation_time": 1777590631.4008596,
+                "auxillary_file_paths": [
+                    "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-4999941.pt"
+                ]
+            },
+            {
+                "steps": 5000005,
+                "file_path": "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-5000005.onnx",
+                "reward": 6.423085348473655,
+                "creation_time": 1777590631.4409811,
+                "auxillary_file_paths": [
+                    "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-5000005.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 5000005,
+            "file_path": "results\\VsCC\\SkillIntro_VsCC.onnx",
+            "reward": 6.423085348473655,
+            "creation_time": 1777590631.4409811,
+            "auxillary_file_paths": [
+                "results\\VsCC\\SkillIntro_VsCC\\SkillIntro_VsCC-5000005.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.2.2+cu121"
+    }
+}
