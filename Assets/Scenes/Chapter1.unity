@@ -3443,9 +3443,6 @@ PrefabInstance:
       addedObject: {fileID: 1739756545}
     - targetCorrespondingSourceObject: {fileID: 383674549258538840, guid: 0227f316bde71754081547553f194b96, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1739756546}
-    - targetCorrespondingSourceObject: {fileID: 383674549258538840, guid: 0227f316bde71754081547553f194b96, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 1739756548}
     - targetCorrespondingSourceObject: {fileID: 383674549258538840, guid: 0227f316bde71754081547553f194b96, type: 3}
       insertIndex: -1
@@ -6350,22 +6347,22 @@ MonoBehaviour:
   _skillManager: {fileID: 1739756540}
   _collector: {fileID: 1739756544}
   _executor: {fileID: 1739756541}
---- !u!114 &1739756546
+--- !u!114 &1739756547
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1739756520}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6d11e9b3c0a95204e8692b21056672dd, type: 3}
+  m_Script: {fileID: 11500000, guid: c16a5bc7a95b5c746b3f748095b98eea, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SpecializedBossAgent
+  m_EditorClassIdentifier: Assembly-CSharp::BossInferenceAgent
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 8000
+  MaxStep: 0
   _moveSpeed: 8.4
   _rotationSpeed: 540
   _phaseSpeedScale:
@@ -6373,6 +6370,16 @@ MonoBehaviour:
   - 1
   - 1.1
   - 1.2
+  _phaseCooldownScale:
+  - 1
+  - 0.85
+  - 0.7
+  - 0.5
+  _phaseDamageScale:
+  - 1
+  - 1.08
+  - 1.16
+  - 1.25
   _bossSpawnPoint: {fileID: 2061452137}
   _p1Object: {fileID: 2004071421}
   _p2Object: {fileID: 1994669177}
@@ -6386,15 +6393,14 @@ MonoBehaviour:
   _trainingSkillManager: {fileID: 1739756545}
   _skillManager: {fileID: 1739756540}
   _skillExecutor: {fileID: 1739756541}
-  _autoCastHelper: {fileID: 0}
-  _biasTracker: {fileID: 0}
+  _autoCastHelper: {fileID: 1739756548}
+  _biasTracker: {fileID: 1739756543}
   _p1TrainingSkillMgr: {fileID: 2004071447}
   _p2TrainingSkillMgr: {fileID: 1994669195}
   _bossSkillPools:
   - {fileID: 11400000, guid: a1b2c3d4e5f60005ab0123456789cde5, type: 2}
   - {fileID: 11400000, guid: a1b2c3d4e5f60006ab0123456789cde6, type: 2}
   - {fileID: 11400000, guid: a1b2c3d4e5f60007ab0123456789cde7, type: 2}
-  _statsLogInterval: 50
   _archetypeProfiles:
   - ArchetypeName: Melee
     SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60001ab0123456789cde1, type: 2}
@@ -6460,85 +6466,6 @@ MonoBehaviour:
     SafeRangeMin: 10
     SafeRangeMax: 18
     MinFlankAngle: 45
-  _proximityRadius: 5
-  _touchReward: 0.2
-  _fastDoubleTouchBonus: 0.3
-  _doubleTouchWindow: 3
-  _touchEndEnabled: 0
-  _noTouchPenalty: -0.5
-  _partialTouchPenalty: -0.2
-  _wStepPenalty: 0.001
-  _wFireReward: 0
-  _wMissPenalty: 0.05
-  _wDamageReward: 0.5
-  _wShieldDamageReward: 0.3
-  _wHitReward: 0.2
-  _wProgress: 0.3
-  _wAlign: 0.003
-  _wIdlePenalty: 0.005
-  _alignDotThreshold: 0.7
-  _minMoveDelta: 0.05
-  _wRangeMaintain: 0.1
-  _rangeTolerance: 2
-  _wCounterAttack: 0
-  _wCloseAlignBonus: 0
-  _wRetreatPenalty: 0
-  _counterAttackWindow: 1
-  _wWallHitPenalty: 0.05
-  _wWallStayPenalty: 0.01
-  _episodeMaxDuration: 60
-  _outOfBoundsY: -5
-  _outOfBoundsPenalty: -1
-  _bossDiedPenalty: 1
-  _allKilledReward: 1
-  _playerKilledReward: 0.3
---- !u!114 &1739756547
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1739756520}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c16a5bc7a95b5c746b3f748095b98eea, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BossInferenceAgent
-  agentParameters:
-    maxStep: 0
-  hasUpgradedFromAgentParameters: 1
-  MaxStep: 0
-  _moveSpeed: 8.4
-  _rotationSpeed: 540
-  _phaseSpeedScale:
-  - 1
-  - 1
-  - 1.1
-  - 1.2
-  _bossSpawnPoint: {fileID: 2061452137}
-  _p1Object: {fileID: 2004071421}
-  _p2Object: {fileID: 1994669177}
-  _playerSpawnPoints:
-  - {fileID: 982834993}
-  - {fileID: 578593650}
-  - {fileID: 1332013078}
-  - {fileID: 889740949}
-  _bossController: {fileID: 1739756521}
-  _collector: {fileID: 1739756544}
-  _trainingSkillManager: {fileID: 1739756545}
-  _skillManager: {fileID: 1739756540}
-  _skillExecutor: {fileID: 1739756541}
-  _autoCastHelper: {fileID: 1739756548}
-  _biasTracker: {fileID: 1739756543}
-  _p1TrainingSkillMgr: {fileID: 2004071447}
-  _p2TrainingSkillMgr: {fileID: 1994669195}
-  _bossSkillPools:
-  - {fileID: 11400000, guid: a1b2c3d4e5f60005ab0123456789cde5, type: 2}
-  - {fileID: 11400000, guid: a1b2c3d4e5f60006ab0123456789cde6, type: 2}
-  - {fileID: 11400000, guid: a1b2c3d4e5f60007ab0123456789cde7, type: 2}
-  _playerSkillPools:
-  - {fileID: 11400000, guid: b7a3d1f2e4c56789ab0123456789cdef, type: 2}
-  _archetypeProfiles: []
   _statsLogInterval: 50
 --- !u!114 &1739756548
 MonoBehaviour:
@@ -6557,6 +6484,11 @@ MonoBehaviour:
   _boss: {fileID: 1739756521}
   _statManager: {fileID: 1739756537}
   _stateManager: {fileID: 1739756536}
+  _phaseTelegraphScale:
+  - 1
+  - 0.9
+  - 0.8
+  - 0.75
 --- !u!1 &1776433597
 GameObject:
   m_ObjectHideFlags: 0

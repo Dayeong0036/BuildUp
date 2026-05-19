@@ -49,7 +49,6 @@ public class BossInferenceAgent : Agent
 
     [Header("Skill Pools")]
     [SerializeField] private SkillPoolSO[] _bossSkillPools;
-    [SerializeField] private SkillPoolSO[] _playerSkillPools;
 
     [Header("Player Behavior Profiles")]
     [SerializeField] private PlayerProfile[] _archetypeProfiles;
@@ -97,6 +96,8 @@ public class BossInferenceAgent : Agent
     private string _endReason;
 
     private int _lastPhaseApplied = -1;
+    private bool _p1DeathHandled;
+    private bool _p2DeathHandled;
     private int _p1ArchIdx;
     private int _p2ArchIdx;
 
@@ -318,6 +319,8 @@ public class BossInferenceAgent : Agent
         _lastPhaseRewarded = 0;
         _lastPhaseApplied  = -1;
         ApplyPhaseMultipliers();
+        _p1DeathHandled    = false;
+        _p2DeathHandled    = false;
         _bossTravelDist    = 0f;
         _endReason         = "Unknown";
 
@@ -340,6 +343,28 @@ public class BossInferenceAgent : Agent
             nav.isStopped = false;
         if (player.TryGetComponent(out Rigidbody rb))
             rb.isKinematic = false;
+    }
+
+    private void FreezePlayer(GameObject player)
+    {
+        if (player == null) return;
+
+        foreach (var mb in player.GetComponents<MonoBehaviour>())
+            mb.StopAllCoroutines();
+
+        if (player.TryGetComponent(out UnityEngine.AI.NavMeshAgent nav) && nav.enabled)
+        {
+            nav.ResetPath();
+            nav.velocity = Vector3.zero;
+            nav.isStopped = true;
+        }
+
+        if (player.TryGetComponent(out Rigidbody rb))
+        {
+            rb.linearVelocity  = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic     = true;
+        }
     }
 
     // ══════════════════════════════════════════════════════════
@@ -526,6 +551,9 @@ public class BossInferenceAgent : Agent
         bool bossAlive = _bossStatManager != null && _bossStatManager.IsAlive;
         bool p1Alive   = _p1StatManager != null && _p1StatManager.IsAlive;
         bool p2Alive   = _p2StatManager != null && _p2StatManager.IsAlive;
+
+        if (!p1Alive && !_p1DeathHandled) { _p1DeathHandled = true; FreezePlayer(_p1Object); }
+        if (!p2Alive && !_p2DeathHandled) { _p2DeathHandled = true; FreezePlayer(_p2Object); }
 
         if (!bossAlive)
         {
