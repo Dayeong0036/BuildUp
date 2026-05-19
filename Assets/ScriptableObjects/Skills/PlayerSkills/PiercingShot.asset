@@ -18,7 +18,7 @@ MonoBehaviour:
     \uAC10\uC18C + \uACE0\uD53C\uD574. \uBE57\uB098\uAC00\uBA74 \uC7AC\uBC1C\uC0AC."
   Icon: {fileID: 0}
   Cooldown: 10
-  Range: 66
+  Range: 60
   TargetType: 3
   RoleTags:
   - Pierce

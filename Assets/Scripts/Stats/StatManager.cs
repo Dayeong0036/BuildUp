@@ -193,17 +193,26 @@ public class StatManager : MonoBehaviour
     // 공격 — 공격자 측 (this 의 DamageUp 반영 후 대상 호출)
     // ══════════════════════════════════════════════════════════
 
+    // ── 페이즈 데미지 배율 (버프 DamageUpMultiplier와 독립) ──
+    private float _phaseDamageMultiplier = 1f;
+    public float PhaseDamageMultiplier => _phaseDamageMultiplier;
+
+    public void SetPhaseDamageMultiplier(float value)
+    {
+        _phaseDamageMultiplier = Mathf.Max(0f, value);
+    }
+
     public void DealDamage(ICombatant target, float amount)
     {
         if (target == null || !_isAlive) return;
-        float adjusted = amount * GetDamageUpMultiplier();
+        float adjusted = amount * GetDamageUpMultiplier() * _phaseDamageMultiplier;
         target.TakeDamage(adjusted, _owner);
     }
 
     public void DealShieldBreakDamage(ICombatant target, float amount, float multiplier)
     {
         if (target == null || !_isAlive) return;
-        float adjusted = amount * GetDamageUpMultiplier();
+        float adjusted = amount * GetDamageUpMultiplier() * _phaseDamageMultiplier;
         target.TakeShieldBreakDamage(adjusted, multiplier, _owner);
     }
 
@@ -648,6 +657,7 @@ public class StatManager : MonoBehaviour
             _runtimeStats.HealingReceivedMultiplier  = _baseStats.HealingReceivedMultiplier;
             _runtimeStats.DamageUpMultiplier          = _baseStats.DamageUpMultiplier;
             _runtimeStats.VulnerabilityBonus          = _baseStats.VulnerabilityBonus;
+            _phaseDamageMultiplier                     = 1f;
 
             if (_baseStats is BossStatsSO bossSO)
             {

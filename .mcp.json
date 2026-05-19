@@ -6,6 +6,10 @@
         "/c",
         "C:\\Users\\paek6\\Downloads\\Buildup\\Buildup\\tools\\mcp-unity-codex.cmd"
       ]
+    },
+    "codex": {
+      "command": "codex",
+      "args": ["mcp-server"]
     }
   }
 }

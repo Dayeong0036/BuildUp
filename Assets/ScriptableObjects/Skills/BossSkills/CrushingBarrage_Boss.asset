@@ -16,8 +16,8 @@ MonoBehaviour:
   DisplayName: "\uBD84\uC1C4 \uC5F0\uD0C0(\uBCF4\uC2A4)"
   Description: "4\uB2E8 \uC5F0\uC18D + \uC2E4\uB4DC \uD30C\uAD34."
   Icon: {fileID: 0}
-  Cooldown: 6
-  Range: 24
+  Cooldown: 10
+  Range: 15
   TargetType: 3
   RoleTags:
   - ShieldBreak

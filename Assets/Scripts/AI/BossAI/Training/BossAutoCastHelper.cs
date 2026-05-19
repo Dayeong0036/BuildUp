@@ -1,7 +1,9 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 // 보스 전용 자동 스킬 시전 (학습 환경용)
-// SkillManager.AutoCast는 플레이어→보스 타겟이므로 보스→플레이어 시전은 별도 필요
+// 텔레그래프: CastStart → wait(duration) → Execute → CastEnd
 // BossInferenceAgent가 이동만 제어, 스킬 시전은 이 헬퍼가 담당
 [RequireComponent(typeof(SkillManager))]
 [RequireComponent(typeof(SkillExecutor))]
@@ -24,10 +26,16 @@ public class BossAutoCastHelper : MonoBehaviour
     [SerializeField] private StatManager   _statManager;
     [SerializeField] private StateManager  _stateManager;
 
+    [Header("Phase Telegraph Scale (§7)")]
+    [SerializeField] private float[] _phaseTelegraphScale = { 1f, 0.9f, 0.8f, 0.75f };
+
     private ICombatant _p1Combatant;
     private ICombatant _p2Combatant;
 
     private bool _enabled;
+    private Coroutine _castRoutine;
+
+    private readonly Dictionary<int, WaitForSeconds> _waitCache = new();
 
     private void Awake()
     {
@@ -40,6 +48,7 @@ public class BossAutoCastHelper : MonoBehaviour
 
     public void Initialize(GameObject p1, GameObject p2)
     {
+        StopCastRoutine();
         _p1Combatant = p1 != null ? p1.GetComponent<ICombatant>() : null;
         _p2Combatant = p2 != null ? p2.GetComponent<ICombatant>() : null;
 
@@ -47,11 +56,31 @@ public class BossAutoCastHelper : MonoBehaviour
         _enabled = false;
     }
 
-    public void SetEnabled(bool on) => _enabled = on;
+    public void SetEnabled(bool on)
+    {
+        _enabled = on;
+        if (!on) StopCastRoutine();
+    }
+
+    private void OnDisable()
+    {
+        StopCastRoutine();
+    }
+
+    private void StopCastRoutine()
+    {
+        if (_castRoutine != null)
+        {
+            StopCoroutine(_castRoutine);
+            _castRoutine = null;
+        }
+        _stateManager?.NotifyCastEnd();
+    }
 
     private void Update()
     {
         if (!_enabled) return;
+        if (_castRoutine != null) return;
         if (!CanBossCast()) return;
 
         var slots = _skillManager.Slots;
@@ -92,22 +121,72 @@ public class BossAutoCastHelper : MonoBehaviour
                 : 0f;
             int hitsBefore = _executor.TotalHitCount;
 
+            float teleDuration = SkillTelegraphTable.GetBaseDuration(skill.SkillId)
+                                 * GetTelegraphScale();
+
+            if (teleDuration > 0f)
+            {
+                if (_stateManager != null) _stateManager.NotifyCastStart();
+                _castRoutine = StartCoroutine(
+                    CastAfterTelegraph(skill, ctx, teleDuration, castDist, hitsBefore));
+                break;
+            }
+
+            // telegraph 0 — 즉시 시전 (SurvivalPulse, OverchargeMode)
             if (_stateManager != null) _stateManager.NotifyCastStart();
             bool fired = _executor.Execute(skill, ctx);
             if (_stateManager != null) _stateManager.NotifyCastEnd();
 
             if (fired)
             {
-                OnCastFired?.Invoke(new CastTelemetry
-                {
-                    Skill      = skill,
-                    Distance   = castDist,
-                    HitsBefore = hitsBefore,
-                    HitsAfter  = _executor.TotalHitCount,
-                });
+                EmitTelemetry(skill, castDist, hitsBefore);
                 break;
             }
         }
+    }
+
+    private IEnumerator CastAfterTelegraph(
+        SkillDefinition skill, SkillContext ctx, float duration,
+        float castDist, int hitsBefore)
+    {
+        yield return GetWait(duration);
+
+        if (_statManager != null && _statManager.IsAlive)
+        {
+            bool fired = _executor.Execute(skill, ctx);
+            if (fired)
+                EmitTelemetry(skill, castDist, hitsBefore);
+        }
+
+        if (_stateManager != null) _stateManager.NotifyCastEnd();
+        _castRoutine = null;
+    }
+
+    private float GetTelegraphScale()
+    {
+        int phase = _boss != null ? _boss.CurrentPhase : 0;
+        if (_phaseTelegraphScale == null || _phaseTelegraphScale.Length == 0) return 1f;
+        int idx = Mathf.Clamp(phase, 0, _phaseTelegraphScale.Length - 1);
+        return _phaseTelegraphScale[idx];
+    }
+
+    private WaitForSeconds GetWait(float seconds)
+    {
+        int key = Mathf.RoundToInt(seconds * 1000f);
+        if (!_waitCache.TryGetValue(key, out var wait))
+            _waitCache[key] = wait = new WaitForSeconds(key / 1000f);
+        return wait;
+    }
+
+    private void EmitTelemetry(SkillDefinition skill, float castDist, int hitsBefore)
+    {
+        OnCastFired?.Invoke(new CastTelemetry
+        {
+            Skill      = skill,
+            Distance   = castDist,
+            HitsBefore = hitsBefore,
+            HitsAfter  = _executor.TotalHitCount,
+        });
     }
 
     private bool CanBossCast()

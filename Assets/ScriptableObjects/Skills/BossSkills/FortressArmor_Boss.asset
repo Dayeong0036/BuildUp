@@ -16,8 +16,8 @@ MonoBehaviour:
   DisplayName: "\uC694\uC0C8 \uC7A5\uAC11(\uBCF4\uC2A4)"
   Description: "\uC804\uBC29 \uD0C0\uACA9 + \uC2E4\uB4DC \uD68D\uB4DD."
   Icon: {fileID: 0}
-  Cooldown: 8
-  Range: 24
+  Cooldown: 12
+  Range: 16
   TargetType: 3
   RoleTags:
   - Shield

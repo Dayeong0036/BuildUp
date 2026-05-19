@@ -16,7 +16,7 @@ MonoBehaviour:
   DisplayName: "\uC0DD\uC874 \uB9E5\uB3D9(\uBCF4\uC2A4)"
   Description: "\uC800\uCCB4\uB825 \uC2DC \uD68C\uBCF5 + \uC7AC\uC0DD + \uC815\uD654."
   Icon: {fileID: 0}
-  Cooldown: 14
+  Cooldown: 20
   Range: 0
   TargetType: 2
   RoleTags:

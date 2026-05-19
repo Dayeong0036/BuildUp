@@ -2856,7 +2856,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &717352463
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3444,6 +3444,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 383674549258538840, guid: 0227f316bde71754081547553f194b96, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1739756546}
+    - targetCorrespondingSourceObject: {fileID: 383674549258538840, guid: 0227f316bde71754081547553f194b96, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1739756548}
+    - targetCorrespondingSourceObject: {fileID: 383674549258538840, guid: 0227f316bde71754081547553f194b96, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1739756547}
   m_SourcePrefab: {fileID: 100100000, guid: 0227f316bde71754081547553f194b96, type: 3}
 --- !u!1 &889740948
 GameObject:
@@ -6136,19 +6142,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 55
+    VectorObservationSize: 129
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
-      BranchSizes: 0400000004000000
-    VectorActionSize: 0400000004000000
+      BranchSizes: 05000000
+    VectorActionSize: 05000000
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
   m_Model: {fileID: 0}
   m_InferenceDevice: 0
   m_BehaviorType: 0
-  m_BehaviorName: SkillIntro_VsMelee
+  m_BehaviorName: BossInference
   TeamId: 0
   m_UseChildSensors: 1
   m_UseChildActuators: 1
@@ -6317,6 +6323,8 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   _maxDistance: 55
   _maxCooldown: 30
   _maxBurstDmg: 120
@@ -6336,9 +6344,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrainingSkillManager
   _skillPool: {fileID: 11400000, guid: e38c12fcf1789e5408236435424c987d, type: 2}
-  _initialUnlockCount: 1
-  _maxUnlockCount: 3
-  _unlockInterval: 15
+  _initialUnlockCount: 5
+  _maxUnlockCount: 5
+  _unlockInterval: 175
   _skillManager: {fileID: 1739756540}
   _collector: {fileID: 1739756544}
   _executor: {fileID: 1739756541}
@@ -6349,7 +6357,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1739756520}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6d11e9b3c0a95204e8692b21056672dd, type: 3}
   m_Name: 
@@ -6358,73 +6366,13 @@ MonoBehaviour:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
   MaxStep: 8000
-  _preset: 0
-  _vsMeleeProfile:
-    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60001ab0123456789cde1, type: 2}
-    MoveGraph: {fileID: 4186811738917985622, guid: fa27213a173a42fca32ed38494101c63, type: 2}
-    DangerRange: 8
-    OptimalMin: 10
-    OptimalMax: 16
-    FleeDistance: 6
-    FlankRadius: 13
-    StrafeRadius: 13
-    StrafeAngleStep: 25
-    MinSpacing: 5
-    AttackRangeMin: 8
-    AttackRangeMax: 15
-    SafeRangeMin: 14
-    SafeRangeMax: 20
-    MinFlankAngle: 60
-  _vsRangedProfile:
-    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60002ab0123456789cde2, type: 2}
-    MoveGraph: {fileID: 4186811738917985622, guid: 5459bb6c7c7449a9848805de9744b0b0, type: 2}
-    DangerRange: 15
-    OptimalMin: 30
-    OptimalMax: 40
-    FleeDistance: 10
-    FlankRadius: 35
-    StrafeRadius: 35
-    StrafeAngleStep: 15
-    MinSpacing: 8
-    AttackRangeMin: 25
-    AttackRangeMax: 40
-    SafeRangeMin: 35
-    SafeRangeMax: 45
-    MinFlankAngle: 90
-  _vsHybridProfile:
-    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60003ab0123456789cde3, type: 2}
-    MoveGraph: {fileID: 4186811738917985622, guid: 899951f6215849228b061ff5f856326b, type: 2}
-    DangerRange: 12
-    OptimalMin: 18
-    OptimalMax: 28
-    FleeDistance: 8
-    FlankRadius: 22
-    StrafeRadius: 22
-    StrafeAngleStep: 20
-    MinSpacing: 6
-    AttackRangeMin: 14
-    AttackRangeMax: 29
-    SafeRangeMin: 24
-    SafeRangeMax: 34
-    MinFlankAngle: 90
-  _vsCCProfile:
-    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60004ab0123456789cde4, type: 2}
-    MoveGraph: {fileID: 4186811738917985622, guid: 0e72a85d1c6644b99daed9423ed0b678, type: 2}
-    DangerRange: 12
-    OptimalMin: 22
-    OptimalMax: 32
-    FleeDistance: 8
-    FlankRadius: 28
-    StrafeRadius: 28
-    StrafeAngleStep: 18
-    MinSpacing: 7
-    AttackRangeMin: 18
-    AttackRangeMax: 32
-    SafeRangeMin: 28
-    SafeRangeMax: 38
-    MinFlankAngle: 69
   _moveSpeed: 8.4
   _rotationSpeed: 540
+  _phaseSpeedScale:
+  - 1
+  - 1
+  - 1.1
+  - 1.2
   _bossSpawnPoint: {fileID: 2061452137}
   _p1Object: {fileID: 2004071421}
   _p2Object: {fileID: 1994669177}
@@ -6438,6 +6386,8 @@ MonoBehaviour:
   _trainingSkillManager: {fileID: 1739756545}
   _skillManager: {fileID: 1739756540}
   _skillExecutor: {fileID: 1739756541}
+  _autoCastHelper: {fileID: 0}
+  _biasTracker: {fileID: 0}
   _p1TrainingSkillMgr: {fileID: 2004071447}
   _p2TrainingSkillMgr: {fileID: 1994669195}
   _bossSkillPools:
@@ -6445,6 +6395,71 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a1b2c3d4e5f60006ab0123456789cde6, type: 2}
   - {fileID: 11400000, guid: a1b2c3d4e5f60007ab0123456789cde7, type: 2}
   _statsLogInterval: 50
+  _archetypeProfiles:
+  - ArchetypeName: Melee
+    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60001ab0123456789cde1, type: 2}
+    MoveGraph: {fileID: 4186811738917985622, guid: fa27213a173a42fca32ed38494101c63, type: 2}
+    DangerRange: 3
+    OptimalMin: 3
+    OptimalMax: 6
+    FleeDistance: 15
+    FlankRadius: 5
+    StrafeRadius: 4
+    StrafeAngleStep: 30
+    MinSpacing: 3
+    AttackRangeMin: 3
+    AttackRangeMax: 6
+    SafeRangeMin: 8
+    SafeRangeMax: 12
+    MinFlankAngle: 45
+  - ArchetypeName: Ranged
+    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60002ab0123456789cde2, type: 2}
+    MoveGraph: {fileID: 4186811738917985622, guid: 5459bb6c7c7449a9848805de9744b0b0, type: 2}
+    DangerRange: 8
+    OptimalMin: 12
+    OptimalMax: 20
+    FleeDistance: 25
+    FlankRadius: 15
+    StrafeRadius: 12
+    StrafeAngleStep: 20
+    MinSpacing: 5
+    AttackRangeMin: 12
+    AttackRangeMax: 25
+    SafeRangeMin: 15
+    SafeRangeMax: 25
+    MinFlankAngle: 60
+  - ArchetypeName: CC
+    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60004ab0123456789cde4, type: 2}
+    MoveGraph: {fileID: 4186811738917985622, guid: 0e72a85d1c6644b99daed9423ed0b678, type: 2}
+    DangerRange: 6
+    OptimalMin: 8
+    OptimalMax: 14
+    FleeDistance: 20
+    FlankRadius: 10
+    StrafeRadius: 9
+    StrafeAngleStep: 25
+    MinSpacing: 4
+    AttackRangeMin: 8
+    AttackRangeMax: 14
+    SafeRangeMin: 12
+    SafeRangeMax: 80
+    MinFlankAngle: 50
+  - ArchetypeName: Hybrid
+    SkillPool: {fileID: 11400000, guid: a1b2c3d4e5f60003ab0123456789cde3, type: 2}
+    MoveGraph: {fileID: 4186811738917985622, guid: 899951f6215849228b061ff5f856326b, type: 2}
+    DangerRange: 5
+    OptimalMin: 6
+    OptimalMax: 15
+    FleeDistance: 18
+    FlankRadius: 10
+    StrafeRadius: 8
+    StrafeAngleStep: 25
+    MinSpacing: 4
+    AttackRangeMin: 5
+    AttackRangeMax: 18
+    SafeRangeMin: 10
+    SafeRangeMax: 18
+    MinFlankAngle: 45
   _proximityRadius: 5
   _touchReward: 0.2
   _fastDoubleTouchBonus: 0.3
@@ -6455,7 +6470,6 @@ MonoBehaviour:
   _wStepPenalty: 0.001
   _wFireReward: 0
   _wMissPenalty: 0.05
-  _wOutOfRangePenalty: 0.1
   _wDamageReward: 0.5
   _wShieldDamageReward: 0.3
   _wHitReward: 0.2
@@ -6478,7 +6492,71 @@ MonoBehaviour:
   _bossDiedPenalty: 1
   _allKilledReward: 1
   _playerKilledReward: 0.3
-  _hitDeadPlayerPenalty: 0.3
+--- !u!114 &1739756547
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1739756520}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c16a5bc7a95b5c746b3f748095b98eea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossInferenceAgent
+  agentParameters:
+    maxStep: 0
+  hasUpgradedFromAgentParameters: 1
+  MaxStep: 0
+  _moveSpeed: 8.4
+  _rotationSpeed: 540
+  _phaseSpeedScale:
+  - 1
+  - 1
+  - 1.1
+  - 1.2
+  _bossSpawnPoint: {fileID: 2061452137}
+  _p1Object: {fileID: 2004071421}
+  _p2Object: {fileID: 1994669177}
+  _playerSpawnPoints:
+  - {fileID: 982834993}
+  - {fileID: 578593650}
+  - {fileID: 1332013078}
+  - {fileID: 889740949}
+  _bossController: {fileID: 1739756521}
+  _collector: {fileID: 1739756544}
+  _trainingSkillManager: {fileID: 1739756545}
+  _skillManager: {fileID: 1739756540}
+  _skillExecutor: {fileID: 1739756541}
+  _autoCastHelper: {fileID: 1739756548}
+  _biasTracker: {fileID: 1739756543}
+  _p1TrainingSkillMgr: {fileID: 2004071447}
+  _p2TrainingSkillMgr: {fileID: 1994669195}
+  _bossSkillPools:
+  - {fileID: 11400000, guid: a1b2c3d4e5f60005ab0123456789cde5, type: 2}
+  - {fileID: 11400000, guid: a1b2c3d4e5f60006ab0123456789cde6, type: 2}
+  - {fileID: 11400000, guid: a1b2c3d4e5f60007ab0123456789cde7, type: 2}
+  _playerSkillPools:
+  - {fileID: 11400000, guid: b7a3d1f2e4c56789ab0123456789cdef, type: 2}
+  _archetypeProfiles: []
+  _statsLogInterval: 50
+--- !u!114 &1739756548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1739756520}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0feb883217f1f947b9284835110af7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossAutoCastHelper
+  _skillManager: {fileID: 1739756540}
+  _executor: {fileID: 1739756541}
+  _boss: {fileID: 1739756521}
+  _statManager: {fileID: 1739756537}
+  _stateManager: {fileID: 1739756536}
 --- !u!1 &1776433597
 GameObject:
   m_ObjectHideFlags: 0
@@ -6973,6 +7051,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6817723836542185393, guid: 3596c5949c5c5924c921a308182dbcb0, type: 3}
+      propertyPath: m_IsKinematic
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7239515687370940878, guid: 3596c5949c5c5924c921a308182dbcb0, type: 3}
       propertyPath: m_Name
       value: Player 2P
@@ -6980,6 +7062,10 @@ PrefabInstance:
     - target: {fileID: 7239515687370940878, guid: 3596c5949c5c5924c921a308182dbcb0, type: 3}
       propertyPath: m_IsActive
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7239515687370940878, guid: 3596c5949c5c5924c921a308182dbcb0, type: 3}
+      propertyPath: m_TagString
+      value: Player
       objectReference: {fileID: 0}
     - target: {fileID: 7721926601859560320, guid: 3596c5949c5c5924c921a308182dbcb0, type: 3}
       propertyPath: m_IsActive
@@ -7041,7 +7127,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 1994669177}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.5
+  m_Radius: 0.1
   m_Speed: 12
   m_Acceleration: 8
   avoidancePriority: 50

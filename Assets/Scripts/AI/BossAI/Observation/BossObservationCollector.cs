@@ -30,7 +30,7 @@ public class BossObservationCollector : MonoBehaviour
     [Header("관측 설정")]
     [SerializeField] private float _maxDistance  = 55f;
     [SerializeField] private float _maxCooldown  = 30f;
-    [SerializeField] private float _maxBurstDmg  = 120f;
+    [SerializeField] private float _maxBurstDmg  = 80f;
     [SerializeField] private float _maxSpeed     = 16f;
     [SerializeField] private int   _maxParryCount = 5;
     [SerializeField] private int   _maxBossPhase  = 4;
@@ -273,8 +273,9 @@ public class BossObservationCollector : MonoBehaviour
         }
 
         float remCD = executor != null ? executor.GetRemainingCooldown(skill) : 0f;
-        sensor.AddObservation(Mathf.Clamp01(remCD / _maxCooldown));          // +0 remCD
-        sensor.AddObservation(Mathf.Clamp01(skill.Cooldown / _maxCooldown)); // +1 maxCD
+        float effectiveCD = executor != null ? executor.GetEffectiveCooldown(skill) : skill.Cooldown;
+        sensor.AddObservation(Mathf.Clamp01(remCD / _maxCooldown));              // +0 remCD
+        sensor.AddObservation(Mathf.Clamp01(effectiveCD / _maxCooldown));        // +1 maxCD (effective)
         sensor.AddObservation(Mathf.Clamp01(skill.Range / _maxDistance));    // +2 range
 
         float coneAoe = 0f;

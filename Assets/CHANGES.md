@@ -5,6 +5,126 @@
 
 ---
 
+## 텔레그래프 duration 시스템 + 드래프트 cadence 수정
+**변경일:** 2026-05-19
+
+### 변경 사유
+1. 핸드오프 §7/§8 텔레그래프 미구현 — 스킬이 즉시 발동되어 운영과 다른 타이밍
+2. 드래프트 cadence 175s → 180s 불일치 (핸드오프 §2/§7: 180s × 4 라운드)
+
+### 변경 내용
+
+**NEW SkillTelegraphTable.cs:**
+- 보스 스킬별 Phase 1 기준 텔레그래프 duration 테이블 (9종)
+- ExecutionSpike 1.35s, CrushingBarrage 1.2s, FortressArmor 1.3s, CollapseRoar 1.6s, MarkWave 1.4s, BarrierBreaker 1.4s, ErosionField 1.6s, SurvivalPulse 0s, OverchargeMode 0s
+
+**BossAutoCastHelper.cs:**
+- 텔레그래프 순서 변경: CastStart → wait(duration) → Execute → CastEnd
+- `_phaseTelegraphScale = {1, 0.9, 0.8, 0.75}` 페이즈별 텔레그래프 스케일링
+- `_castRoutine` 필드로 중복 코루틴 방지
+- `StopCastRoutine()` cleanup — Initialize, SetEnabled(false), OnDisable에서 호출
+- WaitForSeconds ms-key 캐시 (CLAUDE.md 규칙 준수)
+- CastDirection은 텔레그래프 시작 시점에 고정 (회피 윈도우 제공)
+- telegraph=0 스킬(SurvivalPulse, OverchargeMode)은 기존과 동일 즉시 시전
+
+**TrainingSkillManager.cs:**
+- `_unlockInterval` 기본값 175f → 180f
+
+**BossInferenceAgent.cs:**
+- `SetUnlockConfig(1, 4, 175f)` → `SetUnlockConfig(1, 4, 180f)` (P1, P2 모두)
+
+---
+
+## 페이즈별 쿨다운/데미지 배율 구현 (핸드오프 §7)
+**변경일:** 2026-05-19
+
+### 변경 사유
+ML_TRAINING_HANDOFF.md §7 페이즈 배율 중 speed만 구현돼 있었음. cooldown [1, 0.85, 0.7, 0.5]과 damage [1, 1.08, 1.16, 1.25] 미구현 → 학습 환경이 운영 페이즈 스케일링 미재현.
+
+### 변경 내용
+
+**SkillExecutor.cs:**
+- `CooldownMultiplier` 프로퍼티 추가 (기본값 1f, 최소 0.01f clamp)
+- `GetEffectiveCooldown(skill)` 메서드 추가 → `skill.Cooldown * _cooldownMultiplier`
+- `CanUse()`, `GetRemainingCooldown()` → effective cooldown 기준으로 변경
+- `ResetAll()`에서 `_cooldownMultiplier = 1f` 초기화
+- 디버그 로그에 effective/base/multiplier 표시
+
+**StatManager.cs:**
+- `_phaseDamageMultiplier` 필드 추가 (버프 DamageUpMultiplier와 독립)
+- `SetPhaseDamageMultiplier(float)` 메서드 추가
+- `DealDamage()`, `DealShieldBreakDamage()` → `* _phaseDamageMultiplier` 추가
+- `ResetForTraining()`에서 `_phaseDamageMultiplier = 1f` 초기화
+
+**BossInferenceAgent.cs:**
+- `_phaseCooldownScale = {1, 0.85, 0.7, 0.5}` 배열 추가
+- `_phaseDamageScale = {1, 1.08, 1.16, 1.25}` 배열 추가
+- `ApplyPhaseMultipliers()` 메서드: phase 변경 감지 시 SkillExecutor + StatManager 적용
+- `OnActionReceived()` 초반 호출, `ResetState()`에서 `_lastPhaseApplied=-1` + 즉시 적용
+
+**BossObservationCollector.cs:**
+- `AddSlotObservation()` maxCD 채널 → `executor.GetEffectiveCooldown(skill)` 사용
+- remCD/maxCD 모두 effective 기준으로 관측 일관성 확보
+
+---
+
+## 운영 동기화 — SkillLibrary + BossObservationCollector 값 정렬
+**변경일:** 2026-05-19
+
+### 변경 사유
+Codex 교차 검증에서 학습 환경 SkillLibrary.cs 값과 운영(ML_TRAINING_HANDOFF.md §8) 값 불일치 다수 발견. ONNX drop-in 호환 + 학습 품질 보장을 위해 운영 값으로 일괄 정렬.
+
+### 변경 내용
+
+**BossObservationCollector.cs:**
+- `_maxBurstDmg` 120→80 (운영 §5 #128 정규화 상수 일치)
+
+**SkillLibrary.cs — Player 스킬 (10종 수정):**
+- ExecutionSpike: dmg 125→100, cone 30°→32°, onMiss wide retry 제거
+- CrushingBarrage: per-hit 34→28, cone 35°→38°, onMiss wide retry 제거
+- ErosionField: projSpeed 19→28, innerAoE 7.6→9, outerAoE 20.4→20
+- HuntingMark: dmg 68→60, projSpeed 22→35
+- FortressArmor: dmg 90→75, cone 35°→38°, onMiss wide retry 제거
+- SealChain: dmg 60→50, projSpeed 20→30
+- CollapseRoar: dmg 95→80×2hit(구조 변경), innerAoE 10.6→12, onMiss 제거
+- BarrierBreaker: dmg 105→88, projSpeed 19→30
+- PiercingShot: dmg 140→110, projSpeed 25→40
+- RuptureMagazine: dmg 115→95, projSpeed 20→30
+
+**SkillLibrary.cs — Boss 스킬 (7종 수정):**
+- ExecutionSpike_Boss: dmg 118→76, range 16.6→18, cone 35°→38°
+- CrushingBarrage_Boss: per-hit 32→20
+- ErosionField_Boss: innerAoE 9→8, outerAoE 22.2→20, DoT 7→8/s
+- FortressArmor_Boss: dmg 82→65
+- CollapseRoar_Boss: 88×1hit→55×2hit (구조 변경)
+- MarkWave_Boss: dmg 70→50, cone 80°→65°, range 27→22
+- BarrierBreaker_Boss: dmg 90→62, projRange 48→40
+
+**Boss SkillDefinition SO (8종 Cooldown/Range 수정 — 관측 채널 직접 영향):**
+- ExecutionSpike_Boss: CD 8→10, Range 24→18
+- CrushingBarrage_Boss: CD 6→10, Range 24→15
+- FortressArmor_Boss: CD 8→12, Range 24→16
+- CollapseRoar_Boss: CD 10→14, Range 27→24
+- MarkWave_Boss: CD 8→12, Range 33→22
+- BarrierBreaker_Boss: CD 9→14, Range 66→48
+- ErosionField_Boss: CD 10→14, Range 42→22
+- SurvivalPulse_Boss: CD 14→20
+
+**Player SkillDefinition SO (1종):**
+- PiercingShot: Range 66→60
+
+**TrainingSkillManager.cs:**
+- `SetUnlockConfig` interval 파라미터 추가 (기본값 -1 = 변경 없음)
+
+**BossInferenceAgent.cs:**
+- Player TrainingSkillManager unlock config 코드 추가: initial=1, max=4, interval=175s
+- 핸드오프 §7 기준: 초기 1슬롯 + 175s 간격 3회 드래프트 = 최대 4슬롯
+
+### 미해결
+- 핸드오프 문서 §5 Player 슬롯 채널 순서 오기(문서만 수정 필요, 코드 정상)
+
+---
+
 ## BAL-1 R3-R8 Phase 2C — 레거시 Agent obsolete + config.yaml + Codex 수정
 **변경일:** 2026-05-19
 

@@ -17,17 +17,28 @@ public class SkillExecutor : MonoBehaviour
     private readonly Dictionary<string, int> _hitCounts     = new();
     private readonly List<string>            _skillHistory  = new();
 
+    // ── 페이즈 쿨다운 배율 ──────────────────────────────────
+    private float _cooldownMultiplier = 1f;
+    public float CooldownMultiplier
+    {
+        get => _cooldownMultiplier;
+        set => _cooldownMultiplier = Mathf.Max(0.01f, value);
+    }
+
+    public float GetEffectiveCooldown(SkillDefinition skill)
+        => skill != null ? skill.Cooldown * _cooldownMultiplier : 0f;
+
     // ── 쿨타임 조회 ──────────────────────────────────────────
     public bool CanUse(SkillDefinition skill)
     {
         if (skill == null || !skill.IsReady) return false;
-        return Time.time - GetLastUseTime(skill) >= skill.Cooldown;
+        return Time.time - GetLastUseTime(skill) >= GetEffectiveCooldown(skill);
     }
 
     public float GetRemainingCooldown(SkillDefinition skill)
     {
         if (skill == null) return 0f;
-        return Mathf.Max(0f, skill.Cooldown - (Time.time - GetLastUseTime(skill)));
+        return Mathf.Max(0f, GetEffectiveCooldown(skill) - (Time.time - GetLastUseTime(skill)));
     }
 
     // ── 실행 ─────────────────────────────────────────────────
@@ -62,7 +73,7 @@ public class SkillExecutor : MonoBehaviour
                 ? $"{ctx.PrimaryTarget.Transform.name}(HP:{ctx.PrimaryTarget.CurrentHPPercent * 100f:F0}%)"
                 : "없음";
             string caster = ctx.Caster?.Transform.name ?? "?";
-            Debug.Log($"[Skill] {caster} → <b>{skill.DisplayName}</b>({skill.SkillId}) | 대상: {target} | CD: {skill.Cooldown}s\n" +
+            Debug.Log($"[Skill] {caster} → <b>{skill.DisplayName}</b>({skill.SkillId}) | 대상: {target} | CD: {GetEffectiveCooldown(skill):F1}s (base {skill.Cooldown}s ×{_cooldownMultiplier:F2})\n" +
                       $"  실행 로그: {string.Join(" → ", ctx.GetLog())}");
         }
 
@@ -96,6 +107,7 @@ public class SkillExecutor : MonoBehaviour
         _hitCounts.Clear();
         _skillHistory.Clear();
         TotalHitCount = 0;
+        _cooldownMultiplier = 1f;
     }
 
     // ── 적중 기록 — 외부 조회 ───────────────────────────────────

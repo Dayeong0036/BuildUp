@@ -23,8 +23,10 @@ public class BossInferenceAgent : Agent
     [SerializeField] private float _moveSpeed     = 8.4f;
     [SerializeField] private float _rotationSpeed = 540f;
 
-    [Header("Phase Speed Scale")]
-    [SerializeField] private float[] _phaseSpeedScale = { 1f, 1f, 1.1f, 1.2f };
+    [Header("Phase Multipliers (§7)")]
+    [SerializeField] private float[] _phaseSpeedScale    = { 1f, 1f, 1.1f, 1.2f };
+    [SerializeField] private float[] _phaseCooldownScale = { 1f, 0.85f, 0.7f, 0.5f };
+    [SerializeField] private float[] _phaseDamageScale   = { 1f, 1.08f, 1.16f, 1.25f };
 
     [Header("Spawn")]
     [SerializeField] private Transform       _bossSpawnPoint;
@@ -94,6 +96,7 @@ public class BossInferenceAgent : Agent
     private float _bossTravelDist;
     private string _endReason;
 
+    private int _lastPhaseApplied = -1;
     private int _p1ArchIdx;
     private int _p2ArchIdx;
 
@@ -136,6 +139,12 @@ public class BossInferenceAgent : Agent
 
         if (_trainingSkillManager != null)
             _trainingSkillManager.SetUnlockConfig(MaxSkillSlots, MaxSkillSlots);
+
+        // Player: initial 1 + 3 drafts @ 180s = max 4 (핸드오프 §7)
+        if (_p1TrainingSkillMgr != null)
+            _p1TrainingSkillMgr.SetUnlockConfig(1, 4, 180f);
+        if (_p2TrainingSkillMgr != null)
+            _p2TrainingSkillMgr.SetUnlockConfig(1, 4, 180f);
 
         var bp = GetComponent<Unity.MLAgents.Policies.BehaviorParameters>();
         _behaviorName = bp != null ? bp.BehaviorName : "BossInference";
@@ -307,6 +316,8 @@ public class BossInferenceAgent : Agent
 
         _episodeStartTime  = Time.time;
         _lastPhaseRewarded = 0;
+        _lastPhaseApplied  = -1;
+        ApplyPhaseMultipliers();
         _bossTravelDist    = 0f;
         _endReason         = "Unknown";
 
@@ -352,6 +363,8 @@ public class BossInferenceAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actionBuffers)
     {
+        ApplyPhaseMultipliers();
+
         if (_trainingSkillManager != null) _trainingSkillManager.Tick();
 
         bool p1Alive = _p1StatManager != null && _p1StatManager.IsAlive;
@@ -402,6 +415,25 @@ public class BossInferenceAgent : Agent
         if (_phaseSpeedScale == null || _phaseSpeedScale.Length == 0) return 1f;
         int idx = Mathf.Clamp(phase, 0, _phaseSpeedScale.Length - 1);
         return _phaseSpeedScale[idx];
+    }
+
+    private void ApplyPhaseMultipliers()
+    {
+        int phase = _bossController != null ? _bossController.CurrentPhase : 0;
+        if (phase == _lastPhaseApplied) return;
+        _lastPhaseApplied = phase;
+
+        if (_skillExecutor != null && _phaseCooldownScale != null && _phaseCooldownScale.Length > 0)
+        {
+            int idx = Mathf.Clamp(phase, 0, _phaseCooldownScale.Length - 1);
+            _skillExecutor.CooldownMultiplier = _phaseCooldownScale[idx];
+        }
+
+        if (_bossStatManager != null && _phaseDamageScale != null && _phaseDamageScale.Length > 0)
+        {
+            int idx = Mathf.Clamp(phase, 0, _phaseDamageScale.Length - 1);
+            _bossStatManager.SetPhaseDamageMultiplier(_phaseDamageScale[idx]);
+        }
     }
 
     private void TrackAction(int move)

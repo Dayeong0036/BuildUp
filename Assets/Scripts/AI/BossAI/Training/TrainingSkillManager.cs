@@ -12,7 +12,7 @@ public class TrainingSkillManager : MonoBehaviour
     [Header("해금 설정")]
     [SerializeField] private int   _initialUnlockCount = 1;
     [SerializeField] private int   _maxUnlockCount     = 5;
-    [SerializeField] private float _unlockInterval     = 175f;
+    [SerializeField] private float _unlockInterval     = 180f;
 
     [Header("참조")]
     [SerializeField] private SkillManager _skillManager;
@@ -30,10 +30,11 @@ public class TrainingSkillManager : MonoBehaviour
 
     public void SetSkillPool(SkillPoolSO pool) => _skillPool = pool;
 
-    public void SetUnlockConfig(int initial, int max)
+    public void SetUnlockConfig(int initial, int max, float interval = -1f)
     {
         _initialUnlockCount = Mathf.Clamp(initial, 0, MaxSlots);
         _maxUnlockCount     = Mathf.Clamp(max, 0, MaxSlots);
+        if (interval > 0f) _unlockInterval = interval;
     }
 
     private void Awake()

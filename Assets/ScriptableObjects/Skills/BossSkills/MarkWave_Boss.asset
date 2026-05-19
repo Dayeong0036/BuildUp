@@ -16,8 +16,8 @@ MonoBehaviour:
   DisplayName: "\uD45C\uC2DD \uD30C\uB3D9(\uBCF4\uC2A4)"
   Description: "\uC804\uBC29 \uBD80\uCC44\uAF34 80\uB3C4 / 5m \uD45C\uC2DD \uBD80\uC5EC."
   Icon: {fileID: 0}
-  Cooldown: 8
-  Range: 33
+  Cooldown: 12
+  Range: 22
   TargetType: 1
   RoleTags:
   - Mark

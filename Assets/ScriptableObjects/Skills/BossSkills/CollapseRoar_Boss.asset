@@ -16,8 +16,8 @@ MonoBehaviour:
   DisplayName: "\uBD95\uAD34 \uD3EC\uD6A8(\uBCF4\uC2A4)"
   Description: "\uACBD\uC9C1 + \uBC29\uC5B4\uB825 \uAC10\uC18C \uBC94\uC704 \uACF5\uACA9."
   Icon: {fileID: 0}
-  Cooldown: 10
-  Range: 27
+  Cooldown: 14
+  Range: 24
   TargetType: 1
   RoleTags:
   - AOE
