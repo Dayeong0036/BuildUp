@@ -170,10 +170,16 @@ public class BossController : MonoBehaviour, ICombatant
         }
     }
 
+    public void ResetPhaseForTraining()
+    {
+        currentPhase = 0;
+    }
+
     private void OnPhaseChanged(int phase)
     {
         Debug.Log("보스 페이즈 전환! 현재 페이즈: " + phase);
-        agent.speed += 1f;
+        if (!_trainingMode && agent != null)
+            agent.speed += 1f;
     }
 
     private void HandleActions()

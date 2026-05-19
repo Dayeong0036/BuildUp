@@ -6,62 +6,63 @@ using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 
-// Phase 3+ — SpecializedBossAgent
-// SkillIntroAgent 기반, 플레이스타일별 특화 보상 프리셋 지원
+// SpecializedBossAgent — BAL-1 통합
+//
+// 기존 SpecializedBossAgent 전체 로직(추적/보상/CSV/사망/벽/터치) 보존,
+// 관측(129ch), 행동(1 branch [5] 이동+후진), 스킬(BossAutoCastHelper 위임) 으로 전환.
 //
 // BehaviorParameters:
-//   Vector Observation Size : 55 (Phase3 28 + touch 2 + playerSkills 18 + extra 7)
-//   Discrete Branches       : 2 (B0=4 이동, B1=4 스킬)
-//   Max Step                : 8000 (권장)
+//   Vector Observation Size : 129
+//   Discrete Branches       : [5] (이동만)
+//   Max Step                : 0 (에피소드 종료 직접 관리, 720s)
+//
+// Action Branch 0:
+//   0=idle  1=forward  2=turnLeft  3=turnRight  4=backward(×0.7)
 public class SpecializedBossAgent : Agent
 {
-    public enum RewardPreset { VsMelee, VsRanged, VsHybrid, VsCC }
+    private const float BackwardSpeedScale = 0.7f;
+    private const int   MaxSkillSlots      = 5;
 
-    private const int TouchObsCount       = 2;
-    private const int PlayerSkillObsCount = 18;
-    private const int PlayerSkillSlots    = 3;
-    private const int ExtraObsCount       = 7;
+    [Header("Movement")]
+    [SerializeField] private float _moveSpeed     = 8.4f;
+    [SerializeField] private float _rotationSpeed = 540f;
 
-    [Header("특화 프리셋")]
-    [SerializeField] private RewardPreset _preset;
+    [Header("Phase Speed Scale")]
+    [SerializeField] private float[] _phaseSpeedScale = { 1f, 1f, 1.1f, 1.2f };
 
-    [Header("프리셋별 플레이어 프로필")]
-    [SerializeField] private PlayerProfile _vsMeleeProfile;
-    [SerializeField] private PlayerProfile _vsRangedProfile;
-    [SerializeField] private PlayerProfile _vsHybridProfile;
-    [SerializeField] private PlayerProfile _vsCCProfile;
-
-    [Header("이동")]
-    [SerializeField] private float _moveSpeed     = 5f;
-    [SerializeField] private float _rotationSpeed = 200f;
-
-    [Header("스폰 설정")]
+    [Header("Spawn")]
     [SerializeField] private Transform       _bossSpawnPoint;
     [SerializeField] private GameObject      _p1Object;
     [SerializeField] private GameObject      _p2Object;
     [SerializeField] private List<Transform> _playerSpawnPoints;
 
-    [Header("참조")]
+    [Header("References")]
     [SerializeField] private BossController           _bossController;
     [SerializeField] private BossObservationCollector  _collector;
     [SerializeField] private TrainingSkillManager      _trainingSkillManager;
     [SerializeField] private SkillManager              _skillManager;
     [SerializeField] private SkillExecutor             _skillExecutor;
+    [SerializeField] private BossAutoCastHelper        _autoCastHelper;
+    [SerializeField] private PlayerBiasTracker         _biasTracker;
 
-    [Header("플레이어 스킬 분배")]
+    [Header("Player Skill Assign")]
     [SerializeField] private TrainingSkillManager _p1TrainingSkillMgr;
     [SerializeField] private TrainingSkillManager _p2TrainingSkillMgr;
 
-    [Header("스킬풀 랜덤 분배")]
+    [Header("Skill Pools")]
     [SerializeField] private SkillPoolSO[] _bossSkillPools;
     [SerializeField] private int _statsLogInterval = 50;
+
+    [Header("Archetype Profiles")]
+    [SerializeField] private PlayerProfile[] _archetypeProfiles;
 
     [System.Serializable]
     public struct PlayerProfile
     {
+        public string ArchetypeName;
         public SkillPoolSO SkillPool;
         public BehaviorGraph MoveGraph;
-        [Header("이동 파라미터")]
+        [Header("Movement Parameters")]
         public float DangerRange;
         public float OptimalMin;
         public float OptimalMax;
@@ -70,63 +71,60 @@ public class SpecializedBossAgent : Agent
         public float StrafeRadius;
         public float StrafeAngleStep;
         public float MinSpacing;
-        [Header("거리 전환 (AdjustRange용)")]
         public float AttackRangeMin;
         public float AttackRangeMax;
         public float SafeRangeMin;
         public float SafeRangeMax;
-        [Header("협공 (IsFlankAngleLow용)")]
         public float MinFlankAngle;
     }
 
-    [Header("더블 터치")]
+    [Header("Double Touch")]
     [SerializeField] private float _proximityRadius       = 5f;
     [SerializeField] private float _touchReward           = 0.2f;
     [SerializeField] private float _fastDoubleTouchBonus  = 0.3f;
     [SerializeField] private float _doubleTouchWindow     = 3f;
-    [SerializeField] private bool  _touchEndEnabled       = true;
+    [SerializeField] private bool  _touchEndEnabled       = false;
     [SerializeField] private float _noTouchPenalty         = -0.5f;
     [SerializeField] private float _partialTouchPenalty    = -0.2f;
 
-    [Header("보상 튜닝 (프리셋이 덮어씀)")]
+    [Header("Reward Tuning (Unified Hybrid)")]
     [SerializeField] private float _wStepPenalty        = 0.001f;
-    [SerializeField] private float _wFireReward         = 0f;
-    [SerializeField] private float _wMissPenalty        = 0.05f;
-    [SerializeField] private float _wOutOfRangePenalty  = 0.1f;
-    [SerializeField] private float _wDamageReward       = 0.5f;
+    [SerializeField] private float _wFireReward         = 0.03f;
+    [SerializeField] private float _wMissPenalty        = 0.06f;
+    [SerializeField] private float _wDamageReward       = 0.6f;
     [SerializeField] private float _wShieldDamageReward = 0.3f;
-    [SerializeField] private float _wHitReward          = 0.2f;
+    [SerializeField] private float _wHitReward          = 0.25f;
     [SerializeField] private float _wProgress           = 0.3f;
-    [SerializeField] private float _wAlign              = 0.003f;
-    [SerializeField] private float _wIdlePenalty        = 0.005f;
+    [SerializeField] private float _wAlign              = 0.004f;
+    [SerializeField] private float _wIdlePenalty        = 0.006f;
     [SerializeField] private float _alignDotThreshold   = 0.7f;
     [SerializeField] private float _minMoveDelta        = 0.05f;
 
-    [Header("터치 후 행동")]
-    [SerializeField] private float _wRangeMaintain      = 0.1f;
+    [Header("Post-Touch")]
+    [SerializeField] private float _wRangeMaintain      = 0.15f;
     [SerializeField] private float _rangeTolerance       = 2f;
 
-    [Header("근거리 특화 (프리셋이 덮어씀)")]
-    [SerializeField] private float _wCounterAttack      = 0f;
-    [SerializeField] private float _wCloseAlignBonus    = 0f;
-    [SerializeField] private float _wRetreatPenalty     = 0f;
+    [Header("Melee Specials")]
+    [SerializeField] private float _wCounterAttack      = 0.08f;
+    [SerializeField] private float _wCloseAlignBonus    = 0.003f;
+    [SerializeField] private float _wRetreatPenalty     = 0.003f;
     [SerializeField] private float _counterAttackWindow = 1.5f;
 
-    [Header("벽 충돌")]
+    [Header("Wall")]
     [SerializeField] private float _wWallHitPenalty  = 0.05f;
     [SerializeField] private float _wWallStayPenalty = 0.01f;
 
-    [Header("종료 조건")]
-    [SerializeField] private float _episodeMaxDuration    = 60f;
+    [Header("Termination")]
+    [SerializeField] private float _episodeMaxDuration    = 720f;
     [SerializeField] private float _outOfBoundsY          = -5f;
     [SerializeField] private float _outOfBoundsPenalty    = -1.0f;
 
-    [Header("사망 종료")]
+    [Header("Death")]
     [SerializeField] private float _bossDiedPenalty       = 1.0f;
     [SerializeField] private float _allKilledReward       = 1.0f;
-    [SerializeField] private float _playerKilledReward    = 0.3f;
-    [SerializeField] private float _hitDeadPlayerPenalty   = 0.3f;
+    [SerializeField] private float _playerKilledReward    = 0.4f;
 
+    // ── 런타임 상태 ──
     private Renderer _renderer;
     private float    _episodeStartTime;
     private float    _prevTargetDist = -1f;
@@ -162,10 +160,8 @@ public class SpecializedBossAgent : Agent
     private PersistentAreaPool _areaPool;
 
     private SkillPoolSO _currentBossPool;
-    private SkillPoolSO _currentP1Pool;
-    private SkillPoolSO _currentP2Pool;
-    private string _currentP1Move = "Default";
-    private string _currentP2Move = "Default";
+    private int _p1ArchIdx;
+    private int _p2ArchIdx;
 
     private readonly Dictionary<string, MatchupRecord> _matchupStats = new();
     private readonly Dictionary<string, MatchupRecord> _bossPoolStats = new();
@@ -183,7 +179,7 @@ public class SpecializedBossAgent : Agent
     private bool _prevActiveWasP1, _prevActiveValid;
     private int _facingFrames;
     private int _cooldownFrames;
-    private int _actIdle, _actFwd, _actLeft, _actRight;
+    private int _actIdle, _actFwd, _actLeft, _actRight, _actBack;
     private float _sumCastDist;
     private int _castCount;
     private float _wallTime;
@@ -210,73 +206,6 @@ public class SpecializedBossAgent : Agent
     }
 
     // ══════════════════════════════════════════════════════════
-    // 프리셋 적용
-    // ══════════════════════════════════════════════════════════
-
-    private void ApplyPreset()
-    {
-        switch (_preset)
-        {
-            case RewardPreset.VsMelee:
-                _wStepPenalty = 0.0003f; _wFireReward = 0.06f;
-                _wMissPenalty = 0.05f;   _wOutOfRangePenalty = 0.08f;
-                _wDamageReward = 0.75f;  _wShieldDamageReward = 0.35f;
-                _wHitReward = 0.35f;     _wProgress = 0.10f;
-                _wAlign = 0.006f;        _wIdlePenalty = 0.008f;
-                _wRangeMaintain = 0.15f; _rangeTolerance = 3.5f;
-                _touchReward = 0.15f;    _playerKilledReward = 0.6f;
-                _wCounterAttack = 0.12f; _wCloseAlignBonus = 0.005f;
-                _wRetreatPenalty = 0.006f;
-                break;
-            case RewardPreset.VsRanged:
-                _wStepPenalty = 0.0008f; _wFireReward = 0.05f;
-                _wMissPenalty = 0.04f;   _wOutOfRangePenalty = 0.15f;
-                _wDamageReward = 0.75f;  _wShieldDamageReward = 0.35f;
-                _wHitReward = 0.35f;     _wProgress = 0.4f;
-                _wAlign = 0.004f;        _wIdlePenalty = 0.01f;
-                _wRangeMaintain = 0.15f; _rangeTolerance = 1.5f;
-                _touchReward = 0.3f;     _playerKilledReward = 0.5f;
-                _wCounterAttack = 0.06f; _wCloseAlignBonus = 0.002f;
-                _wRetreatPenalty = 0.005f;
-                break;
-            case RewardPreset.VsHybrid:
-                _wStepPenalty = 0.001f;  _wFireReward = 0.03f;
-                _wMissPenalty = 0.06f;   _wOutOfRangePenalty = 0.12f;
-                _wDamageReward = 0.6f;   _wShieldDamageReward = 0.3f;
-                _wHitReward = 0.25f;     _wProgress = 0.3f;
-                _wAlign = 0.004f;        _wIdlePenalty = 0.006f;
-                _wRangeMaintain = 0.15f; _rangeTolerance = 2f;
-                _touchReward = 0.2f;     _playerKilledReward = 0.4f;
-                _wCounterAttack = 0.08f; _wCloseAlignBonus = 0.003f;
-                _wRetreatPenalty = 0.003f;
-                break;
-            case RewardPreset.VsCC:
-                _wStepPenalty = 0.0005f; _wFireReward = 0.05f;
-                _wMissPenalty = 0.02f;   _wOutOfRangePenalty = 0.08f;
-                _wDamageReward = 0.8f;   _wShieldDamageReward = 0.4f;
-                _wHitReward = 0.35f;     _wProgress = 0.45f;
-                _wAlign = 0.003f;        _wIdlePenalty = 0.012f;
-                _wRangeMaintain = 0.12f; _rangeTolerance = 2.5f;
-                _touchReward = 0.3f;     _playerKilledReward = 0.6f;
-                _wCounterAttack = 0.10f; _wCloseAlignBonus = 0.002f;
-                _wRetreatPenalty = 0.004f;
-                break;
-        }
-    }
-
-    private PlayerProfile GetPresetProfile()
-    {
-        return _preset switch
-        {
-            RewardPreset.VsMelee  => _vsMeleeProfile,
-            RewardPreset.VsRanged => _vsRangedProfile,
-            RewardPreset.VsHybrid => _vsHybridProfile,
-            RewardPreset.VsCC     => _vsCCProfile,
-            _                     => _vsHybridProfile,
-        };
-    }
-
-    // ══════════════════════════════════════════════════════════
     // 초기화
     // ══════════════════════════════════════════════════════════
 
@@ -289,6 +218,8 @@ public class SpecializedBossAgent : Agent
         if (_trainingSkillManager == null) _trainingSkillManager = GetComponent<TrainingSkillManager>();
         if (_skillManager == null)   _skillManager   = GetComponent<SkillManager>();
         if (_skillExecutor == null)  _skillExecutor   = GetComponent<SkillExecutor>();
+        if (_autoCastHelper == null) _autoCastHelper  = GetComponent<BossAutoCastHelper>();
+        if (_biasTracker == null)    _biasTracker     = GetComponent<PlayerBiasTracker>();
 
         _projectilePool = FindAnyObjectByType<ProjectilePool>();
         _areaPool       = FindAnyObjectByType<PersistentAreaPool>();
@@ -297,11 +228,17 @@ public class SpecializedBossAgent : Agent
         _skillManager.SetAutoCast(false);
         _skillManager.RoundRobinEnabled = true;
 
+        if (_trainingSkillManager != null)
+            _trainingSkillManager.SetUnlockConfig(MaxSkillSlots, MaxSkillSlots);
+
+        if (_autoCastHelper != null)
+            _autoCastHelper.OnCastFired += HandleCastTelemetry;
+
         var bp = GetComponent<Unity.MLAgents.Policies.BehaviorParameters>();
-        _behaviorName = bp != null ? bp.BehaviorName : "Unknown";
+        _behaviorName = bp != null ? bp.BehaviorName : "Specialized";
 
         _csvPath = System.IO.Path.Combine(Application.dataPath, "..", $"matchup_log_{_behaviorName}.csv");
-        string header = "Episode,Result,EndReason,Duration,BossPool,P1Pool,P2Pool,BossDmgDealt,PlayerDmgDealt,BossHpLeft,P1HpLeft,P2HpLeft,BossHits,BossCasts,P1Hits,P2Hits,CumulativeReward,FirstTouchP1,FirstTouchP2,P1DeathTime,P2DeathTime,BossTravelDist,UnlockedSkills,AvgDistBP1,MinDistBP1,MaxDistBP1,AvgDistBP2,MinDistBP2,MaxDistBP2,AvgDistP1P2,MinDistP1P2,MaxDistP1P2,BossAreaXZ,P1AreaXZ,P2AreaXZ,TargetSwitches,IdleRatio,FwdRatio,RotRatio,FacingRatio,CdWaitRatio,AvgCastDist,WallTime,CounterAttacks,CloseAlignFrames,RetreatFrames";
+        string header = "Episode,Result,EndReason,Duration,BossPool,P1Arch,P2Arch,BossDmgDealt,PlayerDmgDealt,BossHpLeft,P1HpLeft,P2HpLeft,BossHits,BossCasts,P1Hits,P2Hits,CumulativeReward,FirstTouchP1,FirstTouchP2,P1DeathTime,P2DeathTime,BossTravelDist,UnlockedSkills,AvgDistBP1,MinDistBP1,MaxDistBP1,AvgDistBP2,MinDistBP2,MaxDistBP2,AvgDistP1P2,MinDistP1P2,MaxDistP1P2,BossAreaXZ,P1AreaXZ,P2AreaXZ,TargetSwitches,IdleRatio,FwdRatio,RotRatio,BackRatio,FacingRatio,CdWaitRatio,AvgCastDist,WallTime,CounterAttacks,CloseAlignFrames,RetreatFrames";
         if (!System.IO.File.Exists(_csvPath))
         {
             System.IO.File.WriteAllText(_csvPath, header + "\n");
@@ -313,15 +250,42 @@ public class SpecializedBossAgent : Agent
         }
     }
 
+    // ══════════════════════════════════════════════════════════
+    // AutoCast 텔레메트리 콜백
+    // ══════════════════════════════════════════════════════════
+
+    private void HandleCastTelemetry(BossAutoCastHelper.CastTelemetry t)
+    {
+        if (t.Skill.TargetType != TargetType.Self)
+        {
+            _sumCastDist += t.Distance;
+            _castCount++;
+        }
+
+        if (_wFireReward > 0f) AddReward(_wFireReward);
+
+        if (t.HitsAfter == t.HitsBefore && t.Skill.TargetType != TargetType.Self)
+            AddReward(-_wMissPenalty);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 에피소드 시작
+    // ══════════════════════════════════════════════════════════
+
     public override void OnEpisodeBegin()
     {
         if (_renderer != null) _renderer.material.color = Color.red;
 
         CleanupPreviousEpisode();
-        ApplyPreset();
         AssignPools();
         SpawnObjects();
         ResetEpisodeState();
+
+        if (_autoCastHelper != null)
+        {
+            _autoCastHelper.Initialize(_p1Object, _p2Object);
+            _autoCastHelper.SetEnabled(true);
+        }
 
         _currentEpisode++;
     }
@@ -337,29 +301,35 @@ public class SpecializedBossAgent : Agent
         if (_bossSkillPools != null && _bossSkillPools.Length > 0)
         {
             _currentBossPool = _bossSkillPools[Random.Range(0, _bossSkillPools.Length)];
-            _trainingSkillManager.SetSkillPool(_currentBossPool);
+            if (_trainingSkillManager != null)
+                _trainingSkillManager.SetSkillPool(_currentBossPool);
         }
 
-        var profile = GetPresetProfile();
+        int archCount = (_archetypeProfiles != null) ? _archetypeProfiles.Length : 0;
+        _p1ArchIdx = archCount > 0 ? Random.Range(0, archCount) : -1;
+        _p2ArchIdx = archCount > 0 ? Random.Range(0, archCount) : -1;
 
-        _currentP1Pool = profile.SkillPool;
-        _currentP2Pool = profile.SkillPool;
-        _currentP1Move = profile.MoveGraph != null ? profile.MoveGraph.name : "Default";
-        _currentP2Move = profile.MoveGraph != null ? profile.MoveGraph.name : "Default";
-
-        if (_p1TrainingSkillMgr != null) _p1TrainingSkillMgr.SetSkillPool(_currentP1Pool);
-        if (_p2TrainingSkillMgr != null) _p2TrainingSkillMgr.SetSkillPool(_currentP2Pool);
-
-        if (profile.MoveGraph != null)
+        if (archCount > 0)
         {
-            SwapPlayerGraph(_p1Object, profile);
-            SwapPlayerGraph(_p2Object, profile);
+            AssignPlayerArchetype(_p1TrainingSkillMgr, _p1Object, _p1ArchIdx);
+            AssignPlayerArchetype(_p2TrainingSkillMgr, _p2Object, _p2ArchIdx);
         }
+    }
+
+    private void AssignPlayerArchetype(TrainingSkillManager tsMgr, GameObject player, int archIdx)
+    {
+        if (_archetypeProfiles == null || archIdx < 0 || archIdx >= _archetypeProfiles.Length) return;
+        var profile = _archetypeProfiles[archIdx];
+
+        if (tsMgr != null && profile.SkillPool != null)
+            tsMgr.SetSkillPool(profile.SkillPool);
+
+        SwapPlayerGraph(player, profile);
     }
 
     private void SwapPlayerGraph(GameObject player, PlayerProfile profile)
     {
-        if (player == null) return;
+        if (player == null || profile.MoveGraph == null) return;
 
         var agent = player.GetComponent<BehaviorGraphAgent>();
         if (agent == null) return;
@@ -392,20 +362,26 @@ public class SpecializedBossAgent : Agent
         agent.Restart();
     }
 
+    private string GetArchName(int idx)
+    {
+        if (_archetypeProfiles == null || idx < 0 || idx >= _archetypeProfiles.Length) return "Default";
+        return _archetypeProfiles[idx].ArchetypeName;
+    }
+
     private string GetMatchupKey()
     {
         string boss = _currentBossPool != null ? _currentBossPool.name : "Default";
-        string p1   = _currentP1Pool   != null ? _currentP1Pool.name   : "Default";
-        string p2   = _currentP2Pool   != null ? _currentP2Pool.name   : "Default";
-        return $"{boss} vs {p1}({_currentP1Move})+{p2}({_currentP2Move})";
+        string p1   = GetArchName(_p1ArchIdx);
+        string p2   = GetArchName(_p2ArchIdx);
+        return $"{boss} vs {p1}+{p2}";
     }
 
     private void RecordMatchResult(bool bossWon)
     {
         float duration = Time.time - _episodeStartTime;
         string bossName  = _currentBossPool != null ? _currentBossPool.name : "Default";
-        string p1Name    = _currentP1Pool   != null ? _currentP1Pool.name   : "Default";
-        string p2Name    = _currentP2Pool   != null ? _currentP2Pool.name   : "Default";
+        string p1Name    = GetArchName(_p1ArchIdx);
+        string p2Name    = GetArchName(_p2ArchIdx);
 
         float bossHpLeft = _bossController.StatMgr != null ? _bossController.StatMgr.GetHPPercent() : 0f;
         float p1HpLeft   = _p1StatManager != null ? _p1StatManager.GetHPPercent() : 0f;
@@ -440,11 +416,12 @@ public class SpecializedBossAgent : Agent
         float idleR = _behavFrames > 0 ? (float)_actIdle / _behavFrames : 0f;
         float fwdR = _behavFrames > 0 ? (float)_actFwd / _behavFrames : 0f;
         float rotR = _behavFrames > 0 ? (float)(_actLeft + _actRight) / _behavFrames : 0f;
+        float backR = _behavFrames > 0 ? (float)_actBack / _behavFrames : 0f;
         float faceR = _behavFrames > 0 ? (float)_facingFrames / _behavFrames : 0f;
         float cdR = _behavFrames > 0 ? (float)_cooldownFrames / _behavFrames : 0f;
         float avgCast = _castCount > 0 ? _sumCastDist / _castCount : 0f;
 
-        string csvLine = $"{_currentEpisode},{(bossWon ? "BossWin" : "BossLose")},{_endReason},{duration:F1},{bossName},{p1Name},{p2Name},{bossDmgDealt:F0},{playerDmgDealt:F0},{bossHpLeft:F2},{p1HpLeft:F2},{p2HpLeft:F2},{bossHits},{bossCasts},{p1Hits},{p2Hits},{cumReward:F3},{touchP1:F1},{touchP2:F1},{_p1DeathTime:F1},{_p2DeathTime:F1},{_bossTravelDist:F1},{unlockedSlots},{avgDP1:F1},{mnDP1:F1},{_maxDistBP1:F1},{avgDP2:F1},{mnDP2:F1},{_maxDistBP2:F1},{avgDP1P2:F1},{mnDP1P2:F1},{_maxDistP1P2:F1},{bossArea:F1},{p1Area:F1},{p2Area:F1},{_targetSwitches},{idleR:F3},{fwdR:F3},{rotR:F3},{faceR:F3},{cdR:F3},{avgCast:F1},{_wallTime:F2},{_counterAttacks},{_closeAlignFrames},{_retreatFrames}";
+        string csvLine = $"{_currentEpisode},{(bossWon ? "BossWin" : "BossLose")},{_endReason},{duration:F1},{bossName},{p1Name},{p2Name},{bossDmgDealt:F0},{playerDmgDealt:F0},{bossHpLeft:F2},{p1HpLeft:F2},{p2HpLeft:F2},{bossHits},{bossCasts},{p1Hits},{p2Hits},{cumReward:F3},{touchP1:F1},{touchP2:F1},{_p1DeathTime:F1},{_p2DeathTime:F1},{_bossTravelDist:F1},{unlockedSlots},{avgDP1:F1},{mnDP1:F1},{_maxDistBP1:F1},{avgDP2:F1},{mnDP2:F1},{_maxDistBP2:F1},{avgDP1P2:F1},{mnDP1P2:F1},{_maxDistP1P2:F1},{bossArea:F1},{p1Area:F1},{p2Area:F1},{_targetSwitches},{idleR:F3},{fwdR:F3},{rotR:F3},{backR:F3},{faceR:F3},{cdR:F3},{avgCast:F1},{_wallTime:F2},{_counterAttacks},{_closeAlignFrames},{_retreatFrames}";
         try { System.IO.File.AppendAllText(_csvPath, csvLine + "\n"); } catch { }
 
         string matchupKey = GetMatchupKey();
@@ -475,24 +452,29 @@ public class SpecializedBossAgent : Agent
     {
         var sb = new System.Text.StringBuilder();
 
-        sb.AppendLine($"[Specialized:{_preset}] EP#{_currentEpisode} ══════════════════════════");
-        sb.AppendLine("── 보스 풀별 승률 ──");
+        sb.AppendLine($"[Specialized] EP#{_currentEpisode} ══════════════════════════");
+        sb.AppendLine("── Boss Pool WR ──");
         foreach (var kvp in _bossPoolStats)
-            sb.AppendLine($"  {kvp.Key,-20} | 승률:{kvp.Value.WinRate,5:F1}% ({kvp.Value.Wins}/{kvp.Value.Total}) | 평균:{kvp.Value.AvgDuration:F1}s | 보스딜:{kvp.Value.AvgBossDmg:F0} 피딜:{kvp.Value.AvgPlayerDmg:F0}");
+            sb.AppendLine($"  {kvp.Key,-20} | WR:{kvp.Value.WinRate,5:F1}% ({kvp.Value.Wins}/{kvp.Value.Total}) | Avg:{kvp.Value.AvgDuration:F1}s | BDmg:{kvp.Value.AvgBossDmg:F0} PDmg:{kvp.Value.AvgPlayerDmg:F0}");
 
-        sb.AppendLine("── 플레이어 풀별 (상대한 보스 기준) ──");
+        sb.AppendLine("── Player Archetype ──");
         foreach (var kvp in _playerPoolStats)
-            sb.AppendLine($"  {kvp.Key,-20} | 보스승률:{kvp.Value.WinRate,5:F1}% ({kvp.Value.Wins}/{kvp.Value.Total}) | 평균:{kvp.Value.AvgDuration:F1}s");
+            sb.AppendLine($"  {kvp.Key,-20} | BossWR:{kvp.Value.WinRate,5:F1}% ({kvp.Value.Wins}/{kvp.Value.Total}) | Avg:{kvp.Value.AvgDuration:F1}s");
 
-        sb.AppendLine("── 매치업별 상세 ──");
+        sb.AppendLine("── Matchup Detail ──");
         foreach (var kvp in _matchupStats)
-            sb.AppendLine($"  {kvp.Key} | 보스승:{kvp.Value.WinRate,5:F1}% ({kvp.Value.Wins}/{kvp.Value.Total}) | 평균:{kvp.Value.AvgDuration:F1}s | 보스딜:{kvp.Value.AvgBossDmg:F0} 피딜:{kvp.Value.AvgPlayerDmg:F0}");
+            sb.AppendLine($"  {kvp.Key} | BossW:{kvp.Value.WinRate,5:F1}% ({kvp.Value.Wins}/{kvp.Value.Total}) | Avg:{kvp.Value.AvgDuration:F1}s | BDmg:{kvp.Value.AvgBossDmg:F0} PDmg:{kvp.Value.AvgPlayerDmg:F0}");
 
         Debug.Log(sb.ToString());
     }
 
+    // ══════════════════════════════════════════════════════════
+    // 에피소드 상태 리셋
+    // ══════════════════════════════════════════════════════════
+
     private void ResetEpisodeState()
     {
+        if (_bossController != null) _bossController.ResetPhaseForTraining();
         _bossController.StatMgr.ResetForTraining();
         _bossController.StateMgr?.ForceReset();
 
@@ -504,6 +486,8 @@ public class SpecializedBossAgent : Agent
 
         if (_p1TrainingSkillMgr != null) _p1TrainingSkillMgr.ResetForEpisode();
         if (_p2TrainingSkillMgr != null) _p2TrainingSkillMgr.ResetForEpisode();
+
+        if (_biasTracker != null) _biasTracker.ResetAll();
 
         _prevTargetDist   = -1f;
         _prevPosValid     = false;
@@ -535,7 +519,7 @@ public class SpecializedBossAgent : Agent
         _prevActiveValid = false;
         _facingFrames = 0;
         _cooldownFrames = 0;
-        _actIdle = _actFwd = _actLeft = _actRight = 0;
+        _actIdle = _actFwd = _actLeft = _actRight = _actBack = 0;
         _sumCastDist = 0f;
         _castCount = 0;
         _wallTime = 0f;
@@ -575,7 +559,7 @@ public class SpecializedBossAgent : Agent
         foreach (var mb in player.GetComponents<MonoBehaviour>())
             mb.StopAllCoroutines();
 
-        if (player.TryGetComponent(out UnityEngine.AI.NavMeshAgent nav) && nav.enabled)
+        if (player.TryGetComponent(out NavMeshAgent nav) && nav.enabled)
         {
             nav.ResetPath();
             nav.velocity = Vector3.zero;
@@ -594,7 +578,7 @@ public class SpecializedBossAgent : Agent
     {
         if (player == null) return;
 
-        if (player.TryGetComponent(out UnityEngine.AI.NavMeshAgent nav))
+        if (player.TryGetComponent(out NavMeshAgent nav))
             nav.isStopped = false;
 
         if (player.TryGetComponent(out Rigidbody rb))
@@ -647,7 +631,7 @@ public class SpecializedBossAgent : Agent
             rb.angularVelocity = Vector3.zero;
         }
 
-        if (target.TryGetComponent(out UnityEngine.AI.NavMeshAgent nav) && nav.enabled)
+        if (target.TryGetComponent(out NavMeshAgent nav) && nav.enabled)
         {
             nav.Warp(spawn.position);
             target.transform.rotation = spawn.rotation;
@@ -661,93 +645,24 @@ public class SpecializedBossAgent : Agent
     }
 
     // ══════════════════════════════════════════════════════════
-    // 관측 (55개 — Phase3 28 + touch 2 + playerSkills 18 + extra 7)
+    // 관측 (129ch — CollectFull129)
     // ══════════════════════════════════════════════════════════
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        int totalObs = BossObservationCollector.Phase3Size + TouchObsCount + PlayerSkillObsCount + ExtraObsCount;
-
         if (_collector == null)
         {
-            sensor.AddObservation(new float[totalObs]);
+            sensor.AddObservation(new float[BossObservationCollector.FullObsSize]);
             return;
         }
 
-        _collector.CollectUpToPhase3(sensor);
-        sensor.AddObservation(_p1Touched ? 1f : 0f);
-        sensor.AddObservation(_p2Touched ? 1f : 0f);
-        CollectPlayerSkillObs(sensor);
-        CollectExtraObs(sensor);
-    }
-
-    private void CollectPlayerSkillObs(VectorSensor sensor)
-    {
-        float maxDist    = 55f;
-        float maxCd      = 30f;
-        int   ttCount    = System.Enum.GetValues(typeof(TargetType)).Length;
-        float ttDivisor  = Mathf.Max(ttCount - 1, 1);
-
-        CollectOnePlayerSkills(sensor, _p1TrainingSkillMgr, _p1SkillExecutor, _p1StatManager, maxDist, maxCd, ttDivisor);
-        CollectOnePlayerSkills(sensor, _p2TrainingSkillMgr, _p2SkillExecutor, _p2StatManager, maxDist, maxCd, ttDivisor);
-    }
-
-    private void CollectOnePlayerSkills(
-        VectorSensor sensor,
-        TrainingSkillManager tsMgr,
-        SkillExecutor executor,
-        StatManager statMgr,
-        float maxDist, float maxCd, float ttDivisor)
-    {
-        bool alive = statMgr != null && statMgr.IsAlive;
-
-        for (int i = 0; i < PlayerSkillSlots; i++)
-        {
-            SkillDefinition skill = (alive && tsMgr != null) ? tsMgr.GetEquippedSkill(i) : null;
-
-            float range = (skill != null) ? Mathf.Clamp01(skill.Range / maxDist) : 0f;
-            sensor.AddObservation(range);
-
-            float cdRatio = 0f;
-            if (skill != null && executor != null)
-            {
-                float remaining = executor.GetRemainingCooldown(skill);
-                float total     = skill.Cooldown;
-                cdRatio = total > 0f ? Mathf.Clamp01(remaining / total) : 0f;
-            }
-            sensor.AddObservation(cdRatio);
-
-            float tt = (skill != null) ? (float)skill.TargetType / ttDivisor : 0f;
-            sensor.AddObservation(tt);
-        }
-    }
-
-    private void CollectExtraObs(VectorSensor sensor)
-    {
-        const float maxSpeed    = 12f;
-        const float maxBurstDmg = 50f;
-
-        bool p1Alive = _p1StatManager != null && _p1StatManager.IsAlive;
-        bool p2Alive = _p2StatManager != null && _p2StatManager.IsAlive;
-
-        sensor.AddObservation(p1Alive && _p1StatManager.IsCasting ? 1f : 0f);
-        sensor.AddObservation(p2Alive && _p2StatManager.IsCasting ? 1f : 0f);
-
-        sensor.AddObservation(p1Alive ? Mathf.Clamp01(_collector.P1AvgSpeed / maxSpeed) : 0f);
-        sensor.AddObservation(p2Alive ? Mathf.Clamp01(_collector.P2AvgSpeed / maxSpeed) : 0f);
-
-        int p1Unlocked = (_p1TrainingSkillMgr != null) ? _p1TrainingSkillMgr.UnlockedCount : 0;
-        sensor.AddObservation(Mathf.Clamp01((float)p1Unlocked / PlayerSkillSlots));
-        int p2Unlocked = (_p2TrainingSkillMgr != null) ? _p2TrainingSkillMgr.UnlockedCount : 0;
-        sensor.AddObservation(Mathf.Clamp01((float)p2Unlocked / PlayerSkillSlots));
-
-        sensor.AddObservation(Mathf.Clamp01(_collector.RecentBurstDamage / maxBurstDmg));
+        _collector.CollectFull129(sensor);
     }
 
     // ══════════════════════════════════════════════════════════
-    // 행동 (2 Branch)
-    // B0: 0=대기 1=전진 2=좌회전 3=우회전
-    // B1: 0=없음 1=슬롯0 2=슬롯1 3=슬롯2
+    // 행동 — 1 Branch [5] 이동만
+    // 0=idle  1=forward  2=turnLeft  3=turnRight  4=backward(×0.7)
+    // 스킬은 BossAutoCastHelper가 Update()에서 자동 시전
     // ══════════════════════════════════════════════════════════
 
     public override void OnActionReceived(ActionBuffers actionBuffers)
@@ -759,89 +674,54 @@ public class SpecializedBossAgent : Agent
         if (_p1TrainingSkillMgr != null && p1Alive) _p1TrainingSkillMgr.Tick();
         if (_p2TrainingSkillMgr != null && p2Alive) _p2TrainingSkillMgr.Tick();
 
-        int moveAction  = actionBuffers.DiscreteActions[0];
-        int skillAction = actionBuffers.DiscreteActions[1];
+        int moveAction = actionBuffers.DiscreteActions[0];
+
+        bool busy = _bossController != null && _bossController.IsCasting;
+        if (!busy)
+        {
+            float speedScale = GetPhaseSpeedScale();
+            float dt = Time.deltaTime;
+
+            switch (moveAction)
+            {
+                case 1:
+                    transform.position += transform.forward * (_moveSpeed * speedScale * dt);
+                    break;
+                case 2:
+                    transform.Rotate(0f, -_rotationSpeed * dt, 0f);
+                    break;
+                case 3:
+                    transform.Rotate(0f, _rotationSpeed * dt, 0f);
+                    break;
+                case 4:
+                    transform.position -= transform.forward * (_moveSpeed * BackwardSpeedScale * speedScale * dt);
+                    break;
+            }
+        }
 
         switch (moveAction)
         {
-            case 1: transform.position += transform.forward * (_moveSpeed * Time.deltaTime); break;
-            case 2: transform.Rotate(0f, -_rotationSpeed * Time.deltaTime, 0f); break;
-            case 3: transform.Rotate(0f,  _rotationSpeed * Time.deltaTime, 0f); break;
+            case 0: _actIdle++;  break;
+            case 1: _actFwd++;   break;
+            case 2: _actLeft++;  break;
+            case 3: _actRight++; break;
+            case 4: _actBack++;  break;
         }
-
-        if (moveAction == 0) _actIdle++; else if (moveAction == 1) _actFwd++; else if (moveAction == 2) _actLeft++; else _actRight++;
         _behavFrames++;
 
-        bool isMoving = moveAction == 1;
+        bool isMoving = moveAction == 1 || moveAction == 4;
         _bossController.StateMgr?.NotifyMovementInput(isMoving);
-
-        if (skillAction >= 1 && skillAction <= 3)
-        {
-            int slot = skillAction - 1;
-            TryExecuteSkill(slot);
-        }
 
         ApplyStepRewards();
         CheckTermination();
     }
 
-    private void TryExecuteSkill(int slot)
+    private float GetPhaseSpeedScale()
     {
-        if (!_trainingSkillManager.CanUseSlot(slot)) return;
-
-        SkillDefinition skill = _trainingSkillManager.GetEquippedSkill(slot);
-        if (skill == null) return;
-
-        Transform activeTarget = GetActiveTarget();
-
-        if (activeTarget == null && skill.TargetType != TargetType.Self)
-        {
-            bool bothDead = (_p1StatManager != null && !_p1StatManager.IsAlive)
-                         && (_p2StatManager != null && !_p2StatManager.IsAlive);
-            if (!bothDead)
-                AddReward(-_hitDeadPlayerPenalty);
-            return;
-        }
-
-        ICombatant target = activeTarget != null ? activeTarget.GetComponent<ICombatant>() : null;
-
-        float dist = activeTarget != null
-            ? Vector3.Distance(transform.position, activeTarget.position)
-            : float.MaxValue;
-
-        var ctx = new SkillContext
-        {
-            Caster        = _bossController,
-            PrimaryTarget = target,
-            CastPosition  = transform.position,
-            CastDirection = transform.forward,
-        };
-        ctx.RefreshSnapshot();
-
-        int hitsBefore = _skillExecutor.TotalHitCount;
-        bool fired = _skillExecutor.Execute(skill, ctx);
-
-        if (fired && skill.TargetType != TargetType.Self && dist < float.MaxValue)
-        {
-            _sumCastDist += dist;
-            _castCount++;
-        }
-
-        if (fired)
-        {
-            if (skill.TargetType != TargetType.Self && dist > skill.Range)
-            {
-                AddReward(-_wOutOfRangePenalty);
-            }
-            else
-            {
-                if (_wFireReward > 0f) AddReward(_wFireReward);
-
-                int hitsAfter = _skillExecutor.TotalHitCount;
-                if (hitsAfter == hitsBefore && skill.TargetType != TargetType.Self)
-                    AddReward(-_wMissPenalty);
-            }
-        }
+        int phase = _bossController != null ? _bossController.CurrentPhase : 0;
+        if (_phaseSpeedScale == null || _phaseSpeedScale.Length == 0) return 1f;
+        int idx = Mathf.Clamp(phase, 0, _phaseSpeedScale.Length - 1);
+        return _phaseSpeedScale[idx];
     }
 
     // ══════════════════════════════════════════════════════════
@@ -920,18 +800,15 @@ public class SpecializedBossAgent : Agent
     }
 
     // ══════════════════════════════════════════════════════════
-    // Action Masking
+    // Action Masking — IsCasting 시 이동 비활성
     // ══════════════════════════════════════════════════════════
 
     public override void WriteDiscreteActionMask(IDiscreteActionMask actionMask)
     {
-        for (int slot = 0; slot < 3; slot++)
+        if (_bossController != null && _bossController.IsCasting)
         {
-            int actionIndex = slot + 1;
-            if (!_trainingSkillManager.CanUseSlot(slot))
-            {
-                actionMask.SetActionEnabled(1, actionIndex, false);
-            }
+            for (int i = 1; i <= 4; i++)
+                actionMask.SetActionEnabled(0, i, false);
         }
     }
 
@@ -957,7 +834,7 @@ public class SpecializedBossAgent : Agent
         _bossMinPos = Vector3.Min(_bossMinPos, transform.position);
         _bossMaxPos = Vector3.Max(_bossMaxPos, transform.position);
         bool allCd = true;
-        for (int i = 0; i < 3; i++) { if (_trainingSkillManager.CanUseSlot(i)) { allCd = false; break; } }
+        for (int i = 0; i < MaxSkillSlots; i++) { if (_trainingSkillManager.CanUseSlot(i)) { allCd = false; break; } }
         if (allCd) _cooldownFrames++;
 
         ApplyDamageRewards();
@@ -1097,7 +974,7 @@ public class SpecializedBossAgent : Agent
     {
         float sum = 0f;
         int count = 0;
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < MaxSkillSlots; i++)
         {
             SkillDefinition skill = _trainingSkillManager.GetEquippedSkill(i);
             if (skill != null && skill.TargetType != TargetType.Self)
@@ -1117,7 +994,7 @@ public class SpecializedBossAgent : Agent
     {
         if (!_bossController.IsAlive)
         {
-            Debug.Log($"[Specialized:{_preset}] EP#{_currentEpisode} 종료: 보스 사망 (elapsed={Time.time - _episodeStartTime:F1}s) | {GetMatchupKey()}");
+            Debug.Log($"[Specialized] EP#{_currentEpisode} BossDeath (elapsed={Time.time - _episodeStartTime:F1}s) | {GetMatchupKey()}");
             AddReward(-_bossDiedPenalty);
             _endReason = "BossDeath";
             RecordMatchResult(false);
@@ -1133,7 +1010,7 @@ public class SpecializedBossAgent : Agent
         {
             _p1DeathHandled = true;
             _p1DeathTime = Time.time - _episodeStartTime;
-            Debug.Log($"[Specialized:{_preset}] EP#{_currentEpisode} P1 사망 (elapsed={_p1DeathTime:F1}s)");
+            Debug.Log($"[Specialized] EP#{_currentEpisode} P1 dead (elapsed={_p1DeathTime:F1}s)");
             AddReward(_playerKilledReward);
             if (!_p1Touched) { _p1Touched = true; _p1TouchTime = Time.time; }
             _prevTargetDist = -1f;
@@ -1143,7 +1020,7 @@ public class SpecializedBossAgent : Agent
         {
             _p2DeathHandled = true;
             _p2DeathTime = Time.time - _episodeStartTime;
-            Debug.Log($"[Specialized:{_preset}] EP#{_currentEpisode} P2 사망 (elapsed={_p2DeathTime:F1}s)");
+            Debug.Log($"[Specialized] EP#{_currentEpisode} P2 dead (elapsed={_p2DeathTime:F1}s)");
             AddReward(_playerKilledReward);
             if (!_p2Touched) { _p2Touched = true; _p2TouchTime = Time.time; }
             _prevTargetDist = -1f;
@@ -1152,7 +1029,7 @@ public class SpecializedBossAgent : Agent
 
         if (p1Dead && p2Dead)
         {
-            Debug.Log($"[Specialized:{_preset}] EP#{_currentEpisode} 종료: 양쪽 플레이어 사망 (elapsed={Time.time - _episodeStartTime:F1}s) | {GetMatchupKey()}");
+            Debug.Log($"[Specialized] EP#{_currentEpisode} AllPlayerDeath (elapsed={Time.time - _episodeStartTime:F1}s) | {GetMatchupKey()}");
             AddReward(_allKilledReward);
             _endReason = "AllPlayerDeath";
             RecordMatchResult(true);
@@ -1163,7 +1040,7 @@ public class SpecializedBossAgent : Agent
 
         if (transform.position.y < _outOfBoundsY)
         {
-            Debug.Log($"[Specialized:{_preset}] EP#{_currentEpisode} 종료: 맵 밖 추락 y={transform.position.y:F1} (elapsed={Time.time - _episodeStartTime:F1}s) | {GetMatchupKey()}");
+            Debug.Log($"[Specialized] EP#{_currentEpisode} OutOfBounds y={transform.position.y:F1} (elapsed={Time.time - _episodeStartTime:F1}s) | {GetMatchupKey()}");
             AddReward(_outOfBoundsPenalty);
             _endReason = "OutOfBounds";
             RecordMatchResult(false);
@@ -1174,9 +1051,9 @@ public class SpecializedBossAgent : Agent
 
         if (Time.time - _episodeStartTime > _episodeMaxDuration)
         {
-            string touchInfo = _p1Touched && _p2Touched ? "양쪽터치"
-                : _p1Touched ? "P1만터치" : _p2Touched ? "P2만터치" : "터치없음";
-            Debug.Log($"[Specialized:{_preset}] EP#{_currentEpisode} 종료: 시간초과 {_episodeMaxDuration}s ({touchInfo}) | {GetMatchupKey()}");
+            string touchInfo = _p1Touched && _p2Touched ? "BothTouched"
+                : _p1Touched ? "P1Only" : _p2Touched ? "P2Only" : "NoTouch";
+            Debug.Log($"[Specialized] EP#{_currentEpisode} Timeout {_episodeMaxDuration}s ({touchInfo}) | {GetMatchupKey()}");
 
             if (!_p1Touched && !_p2Touched)
                 AddReward(_noTouchPenalty);
@@ -1209,21 +1086,17 @@ public class SpecializedBossAgent : Agent
     }
 
     // ══════════════════════════════════════════════════════════
-    // 휴리스틱
+    // Heuristic
     // ══════════════════════════════════════════════════════════
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var d = actionsOut.DiscreteActions;
         d[0] = 0;
-        d[1] = 0;
 
         if (Input.GetKey(KeyCode.W))      d[0] = 1;
         else if (Input.GetKey(KeyCode.A)) d[0] = 2;
         else if (Input.GetKey(KeyCode.D)) d[0] = 3;
-
-        if (Input.GetKey(KeyCode.Alpha1)) d[1] = 1;
-        if (Input.GetKey(KeyCode.Alpha2)) d[1] = 2;
-        if (Input.GetKey(KeyCode.Alpha3)) d[1] = 3;
+        else if (Input.GetKey(KeyCode.S)) d[0] = 4;
     }
 }

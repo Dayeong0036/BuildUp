@@ -24,3 +24,5 @@ MonoBehaviour:
   - Cleanse
   - Survival
   CounterTags: []
+  AIHint_ConeOrAoE: 0
+  AIHint_Category: 4

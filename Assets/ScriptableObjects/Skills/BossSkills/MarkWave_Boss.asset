@@ -24,3 +24,5 @@ MonoBehaviour:
   - AOE
   CounterTags:
   - Cleanse
+  AIHint_ConeOrAoE: 65
+  AIHint_Category: 1

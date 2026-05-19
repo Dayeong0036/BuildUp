@@ -28,3 +28,5 @@ MonoBehaviour:
   CounterTags:
   - Shield
   - Heal
+  AIHint_ConeOrAoE: 32
+  AIHint_Category: 1

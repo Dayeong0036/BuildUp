@@ -11,11 +11,12 @@ using Unity.MLAgents.Sensors;
 //   Vector Observation Size : 6
 //   Continuous Actions      : 2
 //   Max Step                : 5000 (권장)
+[System.Obsolete("BossInferenceAgent 사용")]
 public class BossAgent : Agent
 {
     [Header("이동")]
-    [SerializeField] private float _moveSpeed     = 5f;
-    [SerializeField] private float _rotationSpeed = 200f;
+    [SerializeField] private float _moveSpeed     = 8.4f;
+    [SerializeField] private float _rotationSpeed = 540f;
 
     [Header("관측 설정")]
     [SerializeField] private float _maxDistance = 15f;             // 거리 정규화 기준

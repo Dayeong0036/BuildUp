@@ -5,6 +5,212 @@
 
 ---
 
+## BAL-1 R3-R8 Phase 2C — 레거시 Agent obsolete + config.yaml + Codex 수정
+**변경일:** 2026-05-19
+
+### 변경 내용
+
+**레거시 5 Agent [Obsolete] 마킹:**
+- BossAgent.cs, DualTargetAgent.cs, SkillIntroAgent.cs, SpecializedBossAgent.cs, VsMeleeAgent.cs
+- 모두 `[System.Obsolete("BossInferenceAgent 사용")]` 추가
+- Obsolete 클래스 내부에서 Obsolete 메서드 호출 시 컴파일러 자동 억제 확인 (pragma 불필요)
+
+**BossInference_config.yaml (신규):**
+- §11 하이퍼파라미터 그대로: PPO, batch 1024, buffer 10240, lr 3e-4
+- hidden_units 256, num_layers 3 (이전 128/2에서 상향)
+- gamma 0.995, time_horizon 1024
+- max_steps 40M, summary_freq 50000, checkpoint_interval 200000
+- keep_checkpoints 5→30 (Codex 권장, 40M 학습 중간 모델 비교용)
+
+### Codex 피드백 수정 (APPROVED WITH CHANGES)
+
+**C1 — Header 인코딩:** BossInferenceAgent.cs 모든 [Header] ASCII로 교체
+**C2 — Obsolete 워닝:** [Obsolete] 클래스 내부 자동 억제 확인, pragma 불필요로 판명 → 제거
+**C3 — AssignPools NRE:** _trainingSkillManager null guard 추가
+**C4 — Scene wiring:** Unity Editor 수동 작업 목록 확인 (코드 범위 밖)
+
+**Suggestions 반영:**
+- keep_checkpoints 30으로 상향
+- CSV 파일명에 worker_id 추가 (병렬 학습 파일 경합 방지)
+- BossController.OnPhaseChanged: training mode에서 NavMesh speed mutation 방지
+
+### 검증 결과
+- 컴파일 에러 0, 워닝 3 (기존, 신규 0)
+
+---
+
+## BAL-1 R3-R8 Phase 2B — BossInferenceAgent 신규 작성 + Codex 수정
+**변경일:** 2026-05-19
+**기준 문서:** ML_TRAINING_HANDOFF.md §2/§5/§10/§11 + project_phase2_additions 체크리스트
+
+### 변경 사유
+4개 레거시 Agent(VsMelee/Ranged/Hybrid/CC + SpecializedBossAgent)를 단일 통합 에이전트로 교체. 1 branch [5] 이동만, 스킬은 BossAutoCastHelper 위임. 129ch observation + 7 reward 신호.
+
+### 변경 내용
+
+**BossInferenceAgent.cs (신규):**
+- `Agent` 상속, BehaviorParameters: obs=129, branches=[5], continuous=0
+- Action Branch 0: idle(0)/forward(1)/turnLeft(2)/turnRight(3)/backward(4, ×0.7)
+- 후퇴 속도 = `_moveSpeed × 0.7 × phaseSpeedScale`
+- IsBusy 가드: IsCasting 시 이동 액션 1~4 마스킹 (idle만 허용)
+- CollectObservations: `_collector.CollectFull129(sensor)` 단일 호출
+- Reward 7신호: Win+1, Loss-1, Timeout-0.3, Dmg+0.001, DmgTaken-0.0005, Phase+0.05, Step-0.0001
+- Episode 720s, OutOfBounds -5f
+- OnEpisodeBegin: archetype 독립 균등 샘플, 풀 분배, 스폰, PlayerBiasTracker.ResetAll()
+- P1/P2 BehaviorGraph 교체 (archetype별 프로필)
+- CSV 로깅: results/episodes_{behavior}.csv (§12 포맷)
+- Heuristic: W=fwd, A=left, D=right, S=backward
+
+### Codex 피드백 수정 (APPROVED WITH CHANGES)
+
+**Critical 1 — Phase reset:**
+- BossController.cs: `ResetPhaseForTraining()` public 메서드 추가 (currentPhase=0)
+- BossInferenceAgent.ResetState()에서 호출
+
+**Critical 2 — Phase observation 정규화:**
+- BossObservationCollector.CollectFull129: `phase / 4` → `(phase + 1) / 4`
+- Phase 0→0.25, Phase 3(Enrage)→1.0 으로 full range 사용
+
+**Critical 3 — Boss 5-slot 즉시 해금:**
+- TrainingSkillManager: `SetUnlockConfig(int initial, int max)` 추가
+- BossInferenceAgent.Initialize에서 `SetUnlockConfig(5, 5)` 호출
+
+**Critical 4 — IsCasting 마스크:**
+- 현재 스킬이 즉시 실행 구조이므로 학습 지장 없음 (Codex 동의)
+- telegraph duration이 추가되면 별도 busy timer 필요 (Phase 3 이후)
+
+**Suggestions 반영:**
+- BossAutoCastHelper.CanBossCast(): 7조건 명시 체크 (IsAlive, IsCasting, IsParrying, Stunned, HitStun, Silence, Rooted, StateManager.CanCast)
+- BossAutoCastHelper.ResetState() 제거 (agent에서 executor.ResetAll 한 곳에서만)
+- BossAutoCastHelper.Initialize(): _enabled=false 시작, agent가 ResetState 완료 후 SetEnabled(true) 호출
+- BossInferenceAgent: 모든 컴포넌트 참조에 null guard 추가
+- CSV outcome: _endReason 직접 기록 (OutOfBounds 분리)
+
+### 검증 결과
+- 컴파일 에러 0, 워닝 6 (기존, 신규 없음)
+
+---
+
+## BAL-1 R3-R8 Phase 2A — 학습 환경 기반 인프라 (Slot·Obs·AutoCast)
+**변경일:** 2026-05-19
+**기준 문서:** ML_TRAINING_HANDOFF.md + 운영 Q1~Q4 회신
+
+### 변경 사유
+BossInferenceAgent(Phase 2B) 작성 전 필요한 인프라 3종: 5슬롯 스킬 관리, 129ch 관측 수집, 보스 전용 자동 시전. 운영 Q1~Q4 회신 반영.
+
+### 변경 내용
+
+**TrainingSkillManager.cs:**
+- MaxSlots 3→5, _maxUnlockCount 3→5, _unlockInterval 15→175s (운영 cardDraftInterval 동기)
+
+**PlayerBiasTracker.cs:**
+- `ResetAll()` public 메서드 추가 (에피소드 리셋용, 운영 Q2 회신)
+
+**BossObservationCollector.cs:**
+- BossSkillSlots 3→5, FullObsSize=129, ChannelsPerSlot=7, TouchRange=5f 상수 추가
+- P1/P2 SkillManager/SkillExecutor/TrainingSkillManager 캐시 추가
+- `EnsureSkillArrays()` + `OnValidate()` — 직렬화 배열 3→5 안전 보정
+- `CollectFull129(VectorSensor)` — 129ch 통합 관측 메서드 신규
+  - `AddSlotObservation()` per-slot 7ch (remCD/30, maxCD/30, range/55, coneOrAoE, one-hot3)
+  - `AddPlayerSlots()` 플레이어 5슬롯 관측
+- `CollectUpToPhase3/4/5` → `[Obsolete("CollectFull129 사용")]` 마킹
+
+**BossAutoCastHelper.cs (신규):**
+- 보스 전용 자동 시전 — SkillManager.AutoCast(플레이어→보스)와 분리
+- Initialize(p1, p2)로 플레이어 타겟 설정 + SkillManager.AutoCast 비활성화
+- Update 루프: 슬롯 순회 → CanUse → 가까운 플레이어 탐색 → 거리/조건 검사 → Execute
+- BossController를 ICombatant Caster로 사용
+
+### 검증 결과
+- 컴파일 에러 0, 워닝 6 (기존 2 + Obsolete 3 + 미사용 필드 1, 신규 에러 없음)
+
+---
+
+## BAL-1 R3-R8 운영 동기화 — Batch 1B (AIHint 필드 + 보스 wide retry 제거)
+**변경일:** 2026-05-19
+**기준 문서:** 운영 T1C 완료 회신 (SkillDefinition AIHint 필드 + 23 SO 값 확정)
+
+### 변경 사유
+운영 T1C 라운드 완료로 SkillDefinition AI 관측 힌트 필드가 확정됨. 학습 환경에 동일 필드 추가 + 23개 SO 값 동기화. 보스 스킬 4개의 wide retry(onMiss) 분기는 운영 R2에서 이미 제거되어 학습 측도 동기 제거.
+
+### 변경 내용
+
+**SkillDefinition.cs 신규 필드:**
+- `SkillCategoryFlag` enum 추가 (None=0, Directional=1, AoE=2, Projectile=3, Self=4)
+- `AIHint_ConeOrAoE` (float) — cone: deg / AoE: m / projectile·self: 0
+- `AIHint_Category` (SkillCategoryFlag)
+
+**23 SO .asset 값 동기화 (Boss 11 + Player 12):**
+- Boss: ExecutionSpike(38,Dir) CrushingBarrage(40,Dir) FortressArmor(35,Dir) CollapseRoar(12,AoE) MarkWave(65,Dir) BarrierBreaker(0,Proj) ErosionField(20,AoE) SurvivalPulse(0,Self) OverchargeMode(0,Self) SealChain(0,None) RuptureMagazine(0,None)
+- Player: ExecutionSpike(32,Dir) CrushingBarrage(38,Dir) FortressArmor(38,Dir) CollapseRoar(12,AoE) PiercingShot(0,Proj) BarrierBreaker(0,Proj) HuntingMark(0,Proj) ErosionField(9,Proj) SealChain(0,Proj) RuptureMagazine(0,Proj) SurvivalPulse(0,Self) OverchargeMode(0,Self)
+
+**보스 wide retry(onMiss) 제거 — SkillLibrary.cs:**
+- `ExecutionSpike_Boss`: onMiss 분기 제거, TriggerOnHit(onHit:...) 만 유지
+- `CrushingBarrage_Boss`: onMiss 분기 제거 (중첩 TriggerOnHit 포함)
+- `FortressArmor_Boss`: onMiss 분기 제거
+- `CollapseRoar_Boss`: 두 번째 TriggerOnHit(onMiss:...) 호출 전체 제거
+
+### 검증 결과
+- `rg AIHint_ConeOrAoE` Assets/ScriptableObjects/Skills → 23건
+- `rg AIHint_Category` → 23건, Category:0 은 SealChain_Boss + RuptureMagazine_Boss만
+- 보스 onMiss 잔존 0건, 플레이어 4건은 운영 T2 대기
+- 컴파일 에러 0, 워닝 3 (기존, 신규 없음)
+
+---
+
+## BAL-1 R3-R8 운영 동기화 — Batch 1A (사양 수치 동기화)
+**변경일:** 2026-05-19
+**기준 문서:** ML_TRAINING_HANDOFF.md (BAL-1, 2026-05-18) + 운영 측 18 항목 회신
+
+### 변경 사유
+운영(production) 클라이언트 BAL-1 R3-R8 패치로 학습 환경 동기화 필수. 학습 ML이 만든 ONNX의 운영 drop-in 정합성 확보. Batch 1A는 운영 T1C/T2/T3 라운드 완료를 기다리지 않고 즉시 적용 가능한 수치 동기화 범위.
+
+### 변경 내용
+
+**기본 스탯 SO (.cs default + .asset 인스펙터):**
+- `Assets/PlayerStatsSO.cs`: MaxHP 100→150, CurrentHP 100→150, MoveSpeed 5→14
+- `Assets/BossStatsSO.cs`: BossMaxHP 1000→6000, BossCurrentHP 1000→6000
+- `Assets/Player&Boss/PlayerStatsSO.asset`: MaxHP 200→150, CurrentHP 100→150, MoveSpeed 100→14
+- `Assets/Player&Boss/PlayerStatsSO_Training.asset`: MaxHP 300→150, CurrentHP 300→150, MoveSpeed 100→14
+- `Assets/Player&Boss/BossStatsSO.asset`: BossMaxHP 1000→6000, BossCurrentHP 1000→6000, BossPhaseThresholds []→[0.75, 0.5, 0.25]
+- `Assets/Player&Boss/BossStatsSO_Training.asset`: BossMaxHP 5000→6000, BossCurrentHP 5000→6000, BossPhaseThresholds []→[0.75, 0.5, 0.25]
+
+**관측 정규화 상수 (BossObservationCollector + Chapter1.unity + 3 Agent 내부 const):**
+- `Assets/Scripts/AI/BossAI/Observation/BossObservationCollector.cs`: _maxBurstDmg 50→120, _maxSpeed 12→16, _maxBossPhase 2→4
+- `Assets/Scenes/Chapter1.unity` (BossObservationCollector serialized): _maxBurstDmg 50→120, _maxSpeed 12→16, _maxBossPhase 2→4
+- `SkillIntroAgent.cs:644-645`: const maxSpeed 12f→16f, maxBurstDmg 50f→120f
+- `SpecializedBossAgent.cs:727-728`: 동일
+- `VsMeleeAgent.cs:685-686`: 동일
+
+**학습 Agent 파라미터 (5개 Agent .cs + Chapter1.unity 씬 override):**
+- `BossAgent.cs` / `DualTargetAgent.cs` / `SkillIntroAgent.cs` / `SpecializedBossAgent.cs` / `VsMeleeAgent.cs`: _moveSpeed 5f→8.4f, _rotationSpeed 200f→540f
+- `Chapter1.unity` (SpecializedBossAgent serialized): _moveSpeed 10→8.4, _rotationSpeed 200→540
+
+**Projectile 감지 반경:**
+- `Assets/Scripts/Skill/Projectile/SkillProjectile.cs:10`: _detectionRadius 0.5f→1.0f
+- `Assets/Scripts/Skill/Prefab/ProjectTile.prefab`: _detectionRadius serialize 없음 → .cs default 자동 적용, prefab Edit 불필요
+
+### 운영 회신 근거
+- §B1: _maxBurstDmg 80→120 (PiercingShot 110×1.25=137, CB 4히트=140 → 80도 saturation)
+- §F1: Boss Rotation 540°/s 확정 (Codex 권장 oscillation 감소로 720→540)
+- §C: SO .asset YAML 직접 수정 OK (단순 수치)
+- Codex F: SkillProjectile prefab 내 _detectionRadius serialize 없음 — .cs default 변경으로 충분
+
+### 검증 가이드 (Codex D, E)
+- 100K smoke는 발산/NaN/극단 oscillation 탐지 용도만 (정식 학습 품질 판단 X — BossInferenceAgent + 새 7신호 reward 적용 후로 보류)
+- 모니터링: action histogram(좌/우 회전 비율, 좌우 번갈이 비율), 초반 10초 yaw delta/sec, wall/out-of-bounds 접촉 시간, Policy/Entropy 급락, KL spike, value loss spike, episode length, target distance
+
+### 후속 Batch / Phase
+- **Batch 1B** (운영 T1C 완료 후): SkillDefinition AIHint 필드 + 23 SO .asset 동기 + 보스 7개 wide retry 동기
+- **Batch 1C** (운영 T2 완료 후): 플레이어 4개 wide retry 제거 동기 (ExecutionSpike/CrushingBarrage/FortressArmor/CollapseRoar onMiss)
+- **Batch 1D** (운영 T3 완료 후): SkillExecutor.TelegraphScale + StatManager.PhaseDamageScale + SkillExecutor.CooldownScale
+- **Phase 2**: BossInferenceAgent 신규 작성 (1 branch [5], 129ch obs) + AutoCast 4파일 포팅 + BT PlayerBiasTracker hook
+- **Phase 3**: Reward 7신호 + Episode 720s + cardDraftInterval 175s × 4 라운드 + config.yaml(40M)
+- **Phase 4**: 비교표 4종 + recompile 검증 + 100K smoke
+- **Phase 5**: 본 학습 40M step (운영 T2/T3 완료 후)
+
+---
+
 ## 플레이스타일 특화 보스 에이전트 (SpecializedBossAgent)
 **경로:** `Assets/Scripts/AI/BossAI/Agents/SpecializedBossAgent.cs` (신규)
 **변경일:** 2026-04-30 (VsMelee 튜닝: 2026-05-03)

@@ -4,13 +4,13 @@ using UnityEngine;
 public class BossStatsSO : BaseStatsSO
 
 {
-    // º¸½º Àü¿ë ½ºÅÈ
-    public float BossMaxHP = 1000f;
-    public float BossCurrentHP = 1000f;
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    public float BossMaxHP = 6000f;
+    public float BossCurrentHP = 6000f;
     public float BossBaseDamage = 50f;
     public float BossBaseDefense = 20f;
 
-    [Tooltip("ÆäÀÌÁî ÀüÈ¯ ±âÁØ Ã¼·Â ºñÀ² (¿¹: 0.75, 0.5, 0.25)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½ Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½: 0.75, 0.5, 0.25)")]
     public float[] BossPhaseThresholds;
 
     public float BossTelegraphTimeMultiplier = 1f;

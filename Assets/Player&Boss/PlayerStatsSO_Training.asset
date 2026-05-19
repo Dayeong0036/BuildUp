@@ -28,11 +28,11 @@ MonoBehaviour:
   DefenseUpMultiplier: 1
   VulnerabilityBonus: 0
   ReflectRatio: 0
-  MaxHP: 300
-  CurrentHP: 300
+  MaxHP: 150
+  CurrentHP: 150
   BaseDamage: 10
   BaseDefense: 5
-  MoveSpeed: 100
+  MoveSpeed: 14
   TurnSpeed: 180
   ActionSpeed: 1
   MoveAcceleration: 10

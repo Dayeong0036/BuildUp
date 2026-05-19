@@ -25,3 +25,5 @@ MonoBehaviour:
   - MultiHit
   CounterTags:
   - Shield
+  AIHint_ConeOrAoE: 40
+  AIHint_Category: 1

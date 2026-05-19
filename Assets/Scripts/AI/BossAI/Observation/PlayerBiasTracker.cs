@@ -293,6 +293,14 @@ public class PlayerBiasTracker : MonoBehaviour
         int len = Mathf.Min(output.Length, BiasCount);
         System.Array.Copy(_biases, output, len);
     }
+
+    public void ResetAll()
+    {
+        for (int i = 0; i < BiasCount; i++)
+            _biases[i] = 0f;
+        _positionLog.Clear();
+        _eventLog.Clear();
+    }
 }
 
 // ══════════════════════════════════════════════════════════════

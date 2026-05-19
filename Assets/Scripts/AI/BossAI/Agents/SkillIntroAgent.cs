@@ -14,6 +14,7 @@ using Unity.MLAgents.Sensors;
 //   Vector Observation Size : 55 (Phase3 28 + touch 2 + playerSkills 18 + extra 7)
 //   Discrete Branches       : 2 (B0=4 이동, B1=4 스킬)
 //   Max Step                : 8000 (권장)
+[System.Obsolete("BossInferenceAgent 사용")]
 public class SkillIntroAgent : Agent
 {
     private const int TouchObsCount       = 2;
@@ -22,8 +23,8 @@ public class SkillIntroAgent : Agent
     private const int ExtraObsCount       = 7;
 
     [Header("이동")]
-    [SerializeField] private float _moveSpeed     = 5f;
-    [SerializeField] private float _rotationSpeed = 200f;
+    [SerializeField] private float _moveSpeed     = 8.4f;
+    [SerializeField] private float _rotationSpeed = 540f;
 
     [Header("스폰 설정")]
     [SerializeField] private Transform       _bossSpawnPoint;
@@ -641,8 +642,8 @@ public class SkillIntroAgent : Agent
 
     private void CollectExtraObs(VectorSensor sensor)
     {
-        const float maxSpeed    = 12f;
-        const float maxBurstDmg = 50f;
+        const float maxSpeed    = 16f;
+        const float maxBurstDmg = 120f;
 
         bool p1Alive = _p1StatManager != null && _p1StatManager.IsAlive;
         bool p2Alive = _p2StatManager != null && _p2StatManager.IsAlive;

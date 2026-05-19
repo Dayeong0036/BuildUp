@@ -27,3 +27,5 @@ MonoBehaviour:
   - Melee
   CounterTags:
   - DefUp
+  AIHint_ConeOrAoE: 12
+  AIHint_Category: 2

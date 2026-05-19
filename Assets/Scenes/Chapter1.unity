@@ -2856,7 +2856,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &717352463
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6319,10 +6319,10 @@ MonoBehaviour:
   - {fileID: 0}
   _maxDistance: 55
   _maxCooldown: 30
-  _maxBurstDmg: 50
-  _maxSpeed: 12
+  _maxBurstDmg: 120
+  _maxSpeed: 16
   _maxParryCount: 5
-  _maxBossPhase: 2
+  _maxBossPhase: 4
 --- !u!114 &1739756545
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6423,8 +6423,8 @@ MonoBehaviour:
     SafeRangeMin: 28
     SafeRangeMax: 38
     MinFlankAngle: 69
-  _moveSpeed: 10
-  _rotationSpeed: 200
+  _moveSpeed: 8.4
+  _rotationSpeed: 540
   _bossSpawnPoint: {fileID: 2061452137}
   _p1Object: {fileID: 2004071421}
   _p2Object: {fileID: 1994669177}

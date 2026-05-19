@@ -20,11 +20,12 @@ using Unity.MLAgents.Sensors;
 //   mlagents-learn DualTarget_config.yaml \
 //     --initialize-from=<BasicMove_run_id> --run-id=DualTarget_001
 // ══════════════════════════════════════════════════════════════════════
+[System.Obsolete("BossInferenceAgent 사용")]
 public class DualTargetAgent : Agent
 {
     [Header("이동")]
-    [SerializeField] private float _moveSpeed     = 5f;
-    [SerializeField] private float _rotationSpeed = 200f;
+    [SerializeField] private float _moveSpeed     = 8.4f;
+    [SerializeField] private float _rotationSpeed = 540f;
 
     [Header("관측 설정")]
     [SerializeField] private float _maxDistance = 55f;

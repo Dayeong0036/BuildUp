@@ -25,3 +25,5 @@ MonoBehaviour:
   - Ranged
   CounterTags:
   - Stealth
+  AIHint_ConeOrAoE: 0
+  AIHint_Category: 3

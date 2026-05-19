@@ -230,7 +230,7 @@ public static class SkillLibrary
     // ───────────────  보스 공용 (11종)  ───────────────
     // ══════════════════════════════════════════════════════════════
 
-    // 처형 송곳 (보스) — 좁은 범위 정확 타격, 빗나가면 광역 재시도
+    // 처형 송곳 (보스)
     public static SkillStep ExecutionSpike_Boss() =>
         ctx =>
         {
@@ -240,8 +240,7 @@ public static class SkillLibrary
                 {
                     ApplyVulnerability(2.5f, 0.06f).Invoke(hit);
                     ExecuteBelowHP(30f, 26f).Invoke(hit);
-                },
-                onMiss: DealDirectionalHit(118f, 20.4f, 75f)
+                }
             ).Invoke(ctx);
         };
 
@@ -255,13 +254,6 @@ public static class SkillLibrary
                 {
                     DealMultiHitDamage(32f, 4).Invoke(hit);
                     DealShieldBreakDamage(55f, 1.35f).Invoke(hit);
-                },
-                onMiss: miss =>
-                {
-                    DealDirectionalHit(32f, 19f, 80f).Invoke(miss);
-                    TriggerOnHit(
-                        onHit: DealMultiHitDamage(32f, 4)
-                    ).Invoke(miss);
                 }
             ).Invoke(ctx);
         };
@@ -309,12 +301,11 @@ public static class SkillLibrary
                 {
                     float maxHp = hit.Caster?.MaxHP ?? 0f;
                     GainShield(maxHp * 0.08f).Invoke(hit);
-                },
-                onMiss: DealDirectionalHit(82f, 19.6f, 80f)
+                }
             ).Invoke(ctx);
         };
 
-    // 붕괴 포효 (보스) — 좁은 범위 우선, 빗나가면 광역 재시도
+    // 붕괴 포효 (보스)
     public static SkillStep CollapseRoar_Boss() =>
         ctx =>
         {
@@ -325,9 +316,6 @@ public static class SkillLibrary
                     ApplyHitStun(0.16f).Invoke(inner);
                     ApplyDefenseDown(3f, 6f).Invoke(inner);
                 }
-            ).Invoke(ctx);
-            TriggerOnHit(
-                onMiss: ApplyInArea(23.8f, AreaShape.Circle, DealDamage(88f))
             ).Invoke(ctx);
         };
 

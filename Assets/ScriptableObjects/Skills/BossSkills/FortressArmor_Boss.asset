@@ -24,3 +24,5 @@ MonoBehaviour:
   - Melee
   CounterTags:
   - ShieldBreak
+  AIHint_ConeOrAoE: 35
+  AIHint_Category: 1

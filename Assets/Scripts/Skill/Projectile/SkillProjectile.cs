@@ -7,7 +7,7 @@ using UnityEngine;
 public class SkillProjectile : MonoBehaviour, IProjectile
 {
     [SerializeField] private Color _color = Color.red;
-    [SerializeField] private float _detectionRadius = 0.5f;
+    [SerializeField] private float _detectionRadius = 1.0f;
     [SerializeField] private LayerMask _targetMask = -1;
 
     private const int OverlapBufferSize = 16;

@@ -27,3 +27,5 @@ MonoBehaviour:
   CounterTags:
   - Heal
   - Regen
+  AIHint_ConeOrAoE: 9
+  AIHint_Category: 3

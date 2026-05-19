@@ -4,15 +4,15 @@ using UnityEngine;
 // 에피소드 시작 시 풀에서 랜덤 셔플 → 점진 해금 (최대 3개)
 public class TrainingSkillManager : MonoBehaviour
 {
-    private const int MaxSlots = 3;
+    private const int MaxSlots = 5;
 
     [Header("스킬 풀")]
     [SerializeField] private SkillPoolSO _skillPool;
 
     [Header("해금 설정")]
     [SerializeField] private int   _initialUnlockCount = 1;
-    [SerializeField] private int   _maxUnlockCount     = 3;
-    [SerializeField] private float _unlockInterval     = 15f;
+    [SerializeField] private int   _maxUnlockCount     = 5;
+    [SerializeField] private float _unlockInterval     = 175f;
 
     [Header("참조")]
     [SerializeField] private SkillManager _skillManager;
@@ -29,6 +29,12 @@ public class TrainingSkillManager : MonoBehaviour
     public SkillPoolSO SkillPool => _skillPool;
 
     public void SetSkillPool(SkillPoolSO pool) => _skillPool = pool;
+
+    public void SetUnlockConfig(int initial, int max)
+    {
+        _initialUnlockCount = Mathf.Clamp(initial, 0, MaxSlots);
+        _maxUnlockCount     = Mathf.Clamp(max, 0, MaxSlots);
+    }
 
     private void Awake()
     {

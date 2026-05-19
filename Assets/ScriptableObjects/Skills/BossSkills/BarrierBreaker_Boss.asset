@@ -27,3 +27,5 @@ MonoBehaviour:
   CounterTags:
   - Shield
   - DefUp
+  AIHint_ConeOrAoE: 0
+  AIHint_Category: 3
