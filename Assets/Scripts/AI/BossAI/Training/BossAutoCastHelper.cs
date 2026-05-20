@@ -180,12 +180,20 @@ public class BossAutoCastHelper : MonoBehaviour
 
     private void EmitTelemetry(SkillDefinition skill, float castDist, int hitsBefore)
     {
+        int hitsAfter = _executor.TotalHitCount;
+        int newHits = hitsAfter - hitsBefore;
+
+        if (newHits > 0)
+            Debug.Log($"[BossCast] <color=orange>{skill.DisplayName}</color> → HIT ×{newHits} | dist={castDist:F1}");
+        else
+            Debug.Log($"[BossCast] {skill.DisplayName} → MISS | dist={castDist:F1}");
+
         OnCastFired?.Invoke(new CastTelemetry
         {
             Skill      = skill,
             Distance   = castDist,
             HitsBefore = hitsBefore,
-            HitsAfter  = _executor.TotalHitCount,
+            HitsAfter  = hitsAfter,
         });
     }
 

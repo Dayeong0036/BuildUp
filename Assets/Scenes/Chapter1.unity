@@ -6324,7 +6324,7 @@ MonoBehaviour:
   - {fileID: 0}
   _maxDistance: 55
   _maxCooldown: 30
-  _maxBurstDmg: 120
+  _maxBurstDmg: 80
   _maxSpeed: 16
   _maxParryCount: 5
   _maxBossPhase: 4
@@ -6466,6 +6466,20 @@ MonoBehaviour:
     SafeRangeMin: 10
     SafeRangeMax: 18
     MinFlankAngle: 45
+  _trainingMode: 2
+  _touchEpisodeDuration: 30
+  _proximityRadius: 5
+  _doubleTouchWindow: 3
+  _touchProgressWeight: 0.02
+  _touchIdlePenalty: 0.005
+  _touchMinMoveDelta: 0.05
+  _engageRangeMin: 3
+  _engageRangeMax: 8
+  _engageDotThreshold: 0.5
+  _pressurePointsMax: 10
+  _pressureDrainRate: 1
+  _engageEpisodeDuration: 90
+  _engageFarPenaltyDist: 15
   _statsLogInterval: 50
 --- !u!114 &1739756548
 MonoBehaviour:
@@ -7060,7 +7074,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.1
-  m_Speed: 12
+  m_Speed: 0
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
@@ -7341,8 +7355,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrainingSkillManager
   _skillPool: {fileID: 11400000, guid: b7a3d1f2e4c56789ab0123456789cdef, type: 2}
   _initialUnlockCount: 1
-  _maxUnlockCount: 3
-  _unlockInterval: 15
+  _maxUnlockCount: 4
+  _unlockInterval: 180
   _skillManager: {fileID: 1994669184}
   _collector: {fileID: 0}
   _executor: {fileID: 1994669185}
@@ -7494,7 +7508,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.1
-  m_Speed: 12
+  m_Speed: 0
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
@@ -7647,8 +7661,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TrainingSkillManager
   _skillPool: {fileID: 11400000, guid: b7a3d1f2e4c56789ab0123456789cdef, type: 2}
   _initialUnlockCount: 1
-  _maxUnlockCount: 3
-  _unlockInterval: 15
+  _maxUnlockCount: 4
+  _unlockInterval: 180
   _skillManager: {fileID: 2004071436}
   _collector: {fileID: 0}
   _executor: {fileID: 2004071437}

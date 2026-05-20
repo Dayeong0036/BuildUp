@@ -13,6 +13,8 @@ using Unity.MLAgents.Sensors;
 //
 // Action Branch 0:
 //   0=idle  1=forward  2=turnLeft  3=turnRight  4=backward(×0.7)
+public enum BossTrainingMode { Combat, Touch, Engage }
+
 public class BossInferenceAgent : Agent
 {
     private const float BackwardSpeedScale = 0.7f;
@@ -53,6 +55,26 @@ public class BossInferenceAgent : Agent
     [Header("Player Behavior Profiles")]
     [SerializeField] private PlayerProfile[] _archetypeProfiles;
 
+    [Header("Training Mode")]
+    [SerializeField] private BossTrainingMode _trainingMode = BossTrainingMode.Combat;
+
+    [Header("Touch Mode")]
+    [SerializeField] private float _touchEpisodeDuration  = 30f;
+    [SerializeField] private float _proximityRadius       = 5f;
+    [SerializeField] private float _doubleTouchWindow     = 3f;
+    [SerializeField] private float _touchProgressWeight   = 0.02f;
+    [SerializeField] private float _touchIdlePenalty      = 0.005f;
+    [SerializeField] private float _touchMinMoveDelta     = 0.05f;
+
+    [Header("Engage Mode")]
+    [SerializeField] private float _engageRangeMin         = 3f;
+    [SerializeField] private float _engageRangeMax         = 8f;
+    [SerializeField] private float _engageDotThreshold     = 0.5f;
+    [SerializeField] private float _pressurePointsMax      = 10f;
+    [SerializeField] private float _pressureDrainRate      = 1f;
+    [SerializeField] private float _engageEpisodeDuration  = 90f;
+    [SerializeField] private float _engageFarPenaltyDist   = 15f;
+
     [Header("Logging")]
     [SerializeField] private int _statsLogInterval = 50;
 
@@ -78,6 +100,12 @@ public class BossInferenceAgent : Agent
         public float MinFlankAngle;
     }
 
+    // Mode helpers
+    private bool IsCombatMode => _trainingMode == BossTrainingMode.Combat;
+    private bool IsTouchMode  => _trainingMode == BossTrainingMode.Touch;
+    private bool IsEngageMode => _trainingMode == BossTrainingMode.Engage;
+    private bool UsesCombatSystems => IsCombatMode;
+
     // 런타임 상태
     private StatManager  _bossStatManager;
     private StatManager  _p1StatManager;
@@ -100,6 +128,25 @@ public class BossInferenceAgent : Agent
     private bool _p2DeathHandled;
     private int _p1ArchIdx;
     private int _p2ArchIdx;
+
+    // Touch mode state
+    private bool  _p1Touched;
+    private bool  _p2Touched;
+    private float _p1TouchTime;
+    private float _p2TouchTime;
+    private float _prevTouchMetric;
+    private Vector3 _prevBossPos;
+    private bool    _prevPosValid;
+    private int _touchSuccessCount;
+    private int _touchFastCount;
+
+    // Engage mode state
+    private float _p1PressureHP;
+    private float _p2PressureHP;
+    private bool  _p1WasEngaged;
+    private bool  _p2WasEngaged;
+    private float _lastEngageTickTime;
+    private int   _engageSuccessCount;
 
     // CSV
     private string _csvPath;
@@ -168,10 +215,15 @@ public class BossInferenceAgent : Agent
         if (_autoCastHelper != null)
         {
             _autoCastHelper.Initialize(_p1Object, _p2Object);
-            _autoCastHelper.SetEnabled(true);
+            _autoCastHelper.SetEnabled(UsesCombatSystems);
         }
 
+        if (IsTouchMode)  ResetTouchState();
+        if (IsEngageMode) ResetEngageState();
+
         _currentEpisode++;
+
+        Debug.Log($"[BossInference] EP#{_currentEpisode} Start ({_trainingMode}) | P1={GetArchName(_p1ArchIdx)} P2={GetArchName(_p2ArchIdx)}");
     }
 
     private void CleanupPools()
@@ -189,7 +241,7 @@ public class BossInferenceAgent : Agent
 
     private void AssignPools()
     {
-        if (_bossSkillPools != null && _bossSkillPools.Length > 0 && _trainingSkillManager != null)
+        if (UsesCombatSystems && _bossSkillPools != null && _bossSkillPools.Length > 0 && _trainingSkillManager != null)
         {
             var pool = _bossSkillPools[Random.Range(0, _bossSkillPools.Length)];
             _trainingSkillManager.SetSkillPool(pool);
@@ -197,17 +249,17 @@ public class BossInferenceAgent : Agent
 
         if (_archetypeProfiles != null && _archetypeProfiles.Length > 0)
         {
-            AssignPlayerPool(_p1TrainingSkillMgr, _p1Object, _p1ArchIdx);
-            AssignPlayerPool(_p2TrainingSkillMgr, _p2Object, _p2ArchIdx);
+            AssignPlayerProfile(_p1TrainingSkillMgr, _p1Object, _p1ArchIdx);
+            AssignPlayerProfile(_p2TrainingSkillMgr, _p2Object, _p2ArchIdx);
         }
     }
 
-    private void AssignPlayerPool(TrainingSkillManager tsMgr, GameObject player, int archIdx)
+    private void AssignPlayerProfile(TrainingSkillManager tsMgr, GameObject player, int archIdx)
     {
         if (_archetypeProfiles == null || archIdx < 0 || archIdx >= _archetypeProfiles.Length) return;
         var profile = _archetypeProfiles[archIdx];
 
-        if (tsMgr != null && profile.SkillPool != null)
+        if (UsesCombatSystems && tsMgr != null && profile.SkillPool != null)
             tsMgr.SetSkillPool(profile.SkillPool);
 
         SwapPlayerGraph(player, profile);
@@ -304,13 +356,14 @@ public class BossInferenceAgent : Agent
         ResetPlayer(_p1Object);
         ResetPlayer(_p2Object);
 
-        if (_skillExecutor != null) _skillExecutor.ResetAll();
-        if (_trainingSkillManager != null) _trainingSkillManager.ResetForEpisode();
-
-        if (_p1TrainingSkillMgr != null) _p1TrainingSkillMgr.ResetForEpisode();
-        if (_p2TrainingSkillMgr != null) _p2TrainingSkillMgr.ResetForEpisode();
-
-        if (_biasTracker != null) _biasTracker.ResetAll();
+        if (UsesCombatSystems)
+        {
+            if (_skillExecutor != null) _skillExecutor.ResetAll();
+            if (_trainingSkillManager != null) _trainingSkillManager.ResetForEpisode();
+            if (_p1TrainingSkillMgr != null) _p1TrainingSkillMgr.ResetForEpisode();
+            if (_p2TrainingSkillMgr != null) _p2TrainingSkillMgr.ResetForEpisode();
+            if (_biasTracker != null) _biasTracker.ResetAll();
+        }
 
         _p1StatManager = _p1Object != null ? _p1Object.GetComponent<StatManager>() : null;
         _p2StatManager = _p2Object != null ? _p2Object.GetComponent<StatManager>() : null;
@@ -368,6 +421,240 @@ public class BossInferenceAgent : Agent
     }
 
     // ══════════════════════════════════════════════════════════
+    // Touch Mode 헬퍼
+    // ══════════════════════════════════════════════════════════
+
+    private void ResetTouchState()
+    {
+        _p1Touched = false;
+        _p2Touched = false;
+        _p1TouchTime = -1f;
+        _p2TouchTime = -1f;
+        _prevTouchMetric = -1f;
+        _prevBossPos = transform.position;
+        _prevPosValid = false;
+    }
+
+    private void ApplyTouchRewards()
+    {
+        float distP1 = _p1Object != null
+            ? Vector3.Distance(transform.position, _p1Object.transform.position) : 0f;
+        float distP2 = _p2Object != null
+            ? Vector3.Distance(transform.position, _p2Object.transform.position) : 0f;
+
+        // 터치 판정
+        float now = Time.time;
+        if (!_p1Touched && distP1 < _proximityRadius)
+        {
+            _p1Touched = true;
+            _p1TouchTime = now;
+            AddReward(0.5f);
+            _prevTouchMetric = -1f;
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=cyan>P1 Touch</color> dist={distP1:F1}");
+        }
+        if (!_p2Touched && distP2 < _proximityRadius)
+        {
+            _p2Touched = true;
+            _p2TouchTime = now;
+            AddReward(0.5f);
+            _prevTouchMetric = -1f;
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=cyan>P2 Touch</color> dist={distP2:F1}");
+        }
+
+        // 양쪽 터치 완료 → 성공 종료
+        if (_p1Touched && _p2Touched)
+        {
+            float gap = Mathf.Abs(_p1TouchTime - _p2TouchTime);
+            bool isFast = gap <= _doubleTouchWindow;
+            if (isFast) AddReward(0.5f);
+
+            _touchSuccessCount++;
+            if (isFast) _touchFastCount++;
+
+            _endReason = "TouchSuccess";
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=green>TouchSuccess</color> {(isFast ? "FAST" : "SLOW")} gap={gap:F2}s reward={GetCumulativeReward():F3}");
+            LogEpisodeCsv(true);
+            EndEpisode();
+            return;
+        }
+
+        // 진행 보상 — 미터치 대상까지의 거리 합
+        float metric = 0f;
+        if (!_p1Touched) metric += distP1;
+        if (!_p2Touched) metric += distP2;
+
+        if (_prevTouchMetric >= 0f)
+        {
+            float delta = _prevTouchMetric - metric;
+            AddReward(delta * _touchProgressWeight);
+        }
+        _prevTouchMetric = metric;
+
+        // 정지 패널티
+        if (_prevPosValid)
+        {
+            float moveDelta = Vector3.Distance(transform.position, _prevBossPos);
+            if (moveDelta < _touchMinMoveDelta)
+                AddReward(-_touchIdlePenalty);
+        }
+        _prevBossPos = transform.position;
+        _prevPosValid = true;
+    }
+
+    private void CheckTouchTermination()
+    {
+        if (transform.position.y < -5f)
+        {
+            _endReason = "TouchOOB";
+            AddReward(-1f);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=red>TouchOOB</color> y={transform.position.y:F1}");
+            LogEpisodeCsv(false);
+            EndEpisode();
+            return;
+        }
+
+        float elapsed = Time.time - _episodeStartTime;
+        if (elapsed < _touchEpisodeDuration) return;
+
+        if (!_p1Touched && !_p2Touched)
+        {
+            _endReason = "TouchTimeout_None";
+            AddReward(-0.5f);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=red>TouchTimeout</color> 미접근 reward={GetCumulativeReward():F3}");
+        }
+        else
+        {
+            _endReason = "TouchTimeout_Partial";
+            AddReward(-0.2f);
+            string who = _p1Touched ? "P1만" : "P2만";
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=yellow>TouchTimeout</color> {who} 접근 reward={GetCumulativeReward():F3}");
+        }
+
+        LogEpisodeCsv(false);
+        EndEpisode();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Engage Mode
+    // ══════════════════════════════════════════════════════════
+
+    private void ResetEngageState()
+    {
+        _p1PressureHP = _pressurePointsMax;
+        _p2PressureHP = _pressurePointsMax;
+        _p1WasEngaged = false;
+        _p2WasEngaged = false;
+        _lastEngageTickTime = Time.time;
+        _prevBossPos = transform.position;
+        _prevPosValid = false;
+    }
+
+    private bool IsEngaged(GameObject player, out float dist, out float dot)
+    {
+        dist = 0f;
+        dot = 0f;
+        if (player == null) return false;
+
+        Vector3 toPlayer = player.transform.position - transform.position;
+        dist = toPlayer.magnitude;
+        Vector3 dir = dist > 0.001f ? toPlayer.normalized : Vector3.forward;
+        dot = Vector3.Dot(transform.forward, dir);
+
+        return dist >= _engageRangeMin && dist <= _engageRangeMax && dot >= _engageDotThreshold;
+    }
+
+    private void ApplyEngageRewards()
+    {
+        float dt = Mathf.Max(0f, Time.time - _lastEngageTickTime);
+        _lastEngageTickTime = Time.time;
+
+        bool p1Engaged = IsEngaged(_p1Object, out float distP1, out float dotP1);
+        bool p2Engaged = IsEngaged(_p2Object, out float distP2, out float dotP2);
+
+        // 교전 범위 유지 보상 (초 기준)
+        if (p1Engaged) AddReward(0.01f * dt);
+        if (p2Engaged) AddReward(0.01f * dt);
+        if (p1Engaged && p2Engaged) AddReward(0.02f * dt);
+
+        // 범위 이탈 패널티
+        float nearDist = Mathf.Min(distP1, distP2);
+        if (nearDist > _engageFarPenaltyDist) AddReward(-0.005f * dt);
+
+        // 정지 패널티
+        if (_prevPosValid)
+        {
+            float moveDelta = Vector3.Distance(transform.position, _prevBossPos);
+            if (moveDelta < _touchMinMoveDelta)
+                AddReward(-0.005f * dt);
+        }
+        _prevBossPos = transform.position;
+        _prevPosValid = true;
+
+        // 타깃 전환 보상 (out→in transition)
+        if (p1Engaged && !_p1WasEngaged)
+            AddReward(0.1f);
+        if (p2Engaged && !_p2WasEngaged)
+            AddReward(0.1f);
+        _p1WasEngaged = p1Engaged;
+        _p2WasEngaged = p2Engaged;
+
+        // 압박 HP 감소
+        if (p1Engaged && _p1PressureHP > 0f)
+        {
+            float drain = _pressureDrainRate * dt;
+            float prev = _p1PressureHP;
+            _p1PressureHP = Mathf.Max(0f, _p1PressureHP - drain);
+            float drained = prev - _p1PressureHP;
+            AddReward(0.05f * drained);
+        }
+        if (p2Engaged && _p2PressureHP > 0f)
+        {
+            float drain = _pressureDrainRate * dt;
+            float prev = _p2PressureHP;
+            _p2PressureHP = Mathf.Max(0f, _p2PressureHP - drain);
+            float drained = prev - _p2PressureHP;
+            AddReward(0.05f * drained);
+        }
+
+        // 양쪽 모두 소진 → 성공 종료
+        if (_p1PressureHP <= 0f && _p2PressureHP <= 0f)
+        {
+            _engageSuccessCount++;
+            _endReason = "EngageSuccess";
+            AddReward(0.5f);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=green>EngageSuccess</color> reward={GetCumulativeReward():F3}");
+            LogEpisodeCsv(true);
+            EndEpisode();
+        }
+    }
+
+    private void CheckEngageTermination()
+    {
+        if (transform.position.y < -5f)
+        {
+            _endReason = "EngageOOB";
+            AddReward(-1f);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=red>EngageOOB</color> y={transform.position.y:F1}");
+            LogEpisodeCsv(false);
+            EndEpisode();
+            return;
+        }
+
+        float elapsed = Time.time - _episodeStartTime;
+        if (elapsed < _engageEpisodeDuration) return;
+
+        float remainSum = _p1PressureHP + _p2PressureHP;
+        float maxSum = _pressurePointsMax * 2f;
+        float penalty = -(remainSum / maxSum);
+
+        _endReason = "EngageTimeout";
+        AddReward(penalty);
+        Debug.Log($"[BossInference] EP#{_currentEpisode} <color=yellow>EngageTimeout</color> remain={remainSum:F1}/{maxSum:F0} penalty={penalty:F3} reward={GetCumulativeReward():F3}");
+        LogEpisodeCsv(false);
+        EndEpisode();
+    }
+
+    // ══════════════════════════════════════════════════════════
     // 관측 (129ch)
     // ══════════════════════════════════════════════════════════
 
@@ -388,21 +675,24 @@ public class BossInferenceAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actionBuffers)
     {
-        ApplyPhaseMultipliers();
+        if (UsesCombatSystems)
+        {
+            ApplyPhaseMultipliers();
 
-        if (_trainingSkillManager != null) _trainingSkillManager.Tick();
+            if (_trainingSkillManager != null) _trainingSkillManager.Tick();
 
-        bool p1Alive = _p1StatManager != null && _p1StatManager.IsAlive;
-        bool p2Alive = _p2StatManager != null && _p2StatManager.IsAlive;
-        if (_p1TrainingSkillMgr != null && p1Alive) _p1TrainingSkillMgr.Tick();
-        if (_p2TrainingSkillMgr != null && p2Alive) _p2TrainingSkillMgr.Tick();
+            bool p1Alive = _p1StatManager != null && _p1StatManager.IsAlive;
+            bool p2Alive = _p2StatManager != null && _p2StatManager.IsAlive;
+            if (_p1TrainingSkillMgr != null && p1Alive) _p1TrainingSkillMgr.Tick();
+            if (_p2TrainingSkillMgr != null && p2Alive) _p2TrainingSkillMgr.Tick();
+        }
 
         int move = actionBuffers.DiscreteActions[0];
 
-        bool busy = _bossController != null && _bossController.IsCasting;
+        bool busy = UsesCombatSystems && _bossController != null && _bossController.IsCasting;
         if (!busy)
         {
-            float speedScale = GetPhaseSpeedScale();
+            float speedScale = UsesCombatSystems ? GetPhaseSpeedScale() : 1f;
             float dt = Time.deltaTime;
 
             switch (move)
@@ -430,8 +720,22 @@ public class BossInferenceAgent : Agent
         bool isMoving = move == 1 || move == 4;
         _bossController.StateMgr?.NotifyMovementInput(isMoving);
 
-        ApplyStepRewards();
-        CheckTermination();
+        switch (_trainingMode)
+        {
+            case BossTrainingMode.Touch:
+                ApplyTouchRewards();
+                if (!_p1Touched || !_p2Touched)
+                    CheckTouchTermination();
+                break;
+            case BossTrainingMode.Engage:
+                ApplyEngageRewards();
+                CheckEngageTermination();
+                break;
+            default:
+                ApplyStepRewards();
+                CheckTermination();
+                break;
+        }
     }
 
     private float GetPhaseSpeedScale()
@@ -448,17 +752,25 @@ public class BossInferenceAgent : Agent
         if (phase == _lastPhaseApplied) return;
         _lastPhaseApplied = phase;
 
+        float speedMul = GetPhaseSpeedScale();
+        float cdMul = 1f;
+        float dmgMul = 1f;
+
         if (_skillExecutor != null && _phaseCooldownScale != null && _phaseCooldownScale.Length > 0)
         {
             int idx = Mathf.Clamp(phase, 0, _phaseCooldownScale.Length - 1);
-            _skillExecutor.CooldownMultiplier = _phaseCooldownScale[idx];
+            cdMul = _phaseCooldownScale[idx];
+            _skillExecutor.CooldownMultiplier = cdMul;
         }
 
         if (_bossStatManager != null && _phaseDamageScale != null && _phaseDamageScale.Length > 0)
         {
             int idx = Mathf.Clamp(phase, 0, _phaseDamageScale.Length - 1);
-            _bossStatManager.SetPhaseDamageMultiplier(_phaseDamageScale[idx]);
+            dmgMul = _phaseDamageScale[idx];
+            _bossStatManager.SetPhaseDamageMultiplier(dmgMul);
         }
+
+        Debug.Log($"[BossInference] EP#{_currentEpisode} Phase {phase} | speed={speedMul:F2} cd={cdMul:F2} dmg={dmgMul:F2}");
     }
 
     private void TrackAction(int move)
@@ -480,6 +792,8 @@ public class BossInferenceAgent : Agent
 
     public override void WriteDiscreteActionMask(IDiscreteActionMask actionMask)
     {
+        if (!UsesCombatSystems) return;
+
         if (_bossController != null && _bossController.IsCasting)
         {
             for (int i = 1; i <= 4; i++)
@@ -552,13 +866,28 @@ public class BossInferenceAgent : Agent
         bool p1Alive   = _p1StatManager != null && _p1StatManager.IsAlive;
         bool p2Alive   = _p2StatManager != null && _p2StatManager.IsAlive;
 
-        if (!p1Alive && !_p1DeathHandled) { _p1DeathHandled = true; FreezePlayer(_p1Object); }
-        if (!p2Alive && !_p2DeathHandled) { _p2DeathHandled = true; FreezePlayer(_p2Object); }
+        if (!p1Alive && !_p1DeathHandled)
+        {
+            _p1DeathHandled = true;
+            FreezePlayer(_p1Object);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} P1({GetArchName(_p1ArchIdx)}) 사망 | elapsed={Time.time - _episodeStartTime:F1}s");
+        }
+        if (!p2Alive && !_p2DeathHandled)
+        {
+            _p2DeathHandled = true;
+            FreezePlayer(_p2Object);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} P2({GetArchName(_p2ArchIdx)}) 사망 | elapsed={Time.time - _episodeStartTime:F1}s");
+        }
+
+        float elapsed = Time.time - _episodeStartTime;
+        float bossHpPct = _bossStatManager != null ? _bossStatManager.GetHPPercent() : 0f;
+        string matchup = $"{GetArchName(_p1ArchIdx)}+{GetArchName(_p2ArchIdx)}";
 
         if (!bossAlive)
         {
             _endReason = "BossLose";
             AddReward(-1f);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=red>BossLose</color> | {matchup} | elapsed={elapsed:F1}s reward={GetCumulativeReward():F3}");
             LogEpisodeCsv(false);
             EndEpisode();
             return;
@@ -568,6 +897,7 @@ public class BossInferenceAgent : Agent
         {
             _endReason = "BossWin";
             AddReward(1f);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=green>BossWin</color> | {matchup} | elapsed={elapsed:F1}s bossHP={bossHpPct:P0} reward={GetCumulativeReward():F3}");
             LogEpisodeCsv(true);
             EndEpisode();
             return;
@@ -577,6 +907,7 @@ public class BossInferenceAgent : Agent
         {
             _endReason = "Timeout";
             AddReward(-0.3f);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=yellow>Timeout</color> | {matchup} | bossHP={bossHpPct:P0} reward={GetCumulativeReward():F3}");
             LogEpisodeCsv(false);
             EndEpisode();
             return;
@@ -586,6 +917,7 @@ public class BossInferenceAgent : Agent
         {
             _endReason = "OutOfBounds";
             AddReward(-1f);
+            Debug.Log($"[BossInference] EP#{_currentEpisode} <color=red>OutOfBounds</color> y={transform.position.y:F1} | {matchup}");
             LogEpisodeCsv(false);
             EndEpisode();
         }

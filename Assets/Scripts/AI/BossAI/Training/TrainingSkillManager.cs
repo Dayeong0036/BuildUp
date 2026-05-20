@@ -106,6 +106,8 @@ public class TrainingSkillManager : MonoBehaviour
         _equippedSkills[_unlockedCount] = skill;
         _skillManager.SetSlot(_unlockedCount, skill);
         _unlockedCount++;
+
+        Debug.Log($"[SkillUnlock] {gameObject.name} slot#{_unlockedCount - 1} → {skill.DisplayName}({skill.SkillId}) | total={_unlockedCount}/{_maxUnlockCount}");
     }
 
     private void SyncCollector()

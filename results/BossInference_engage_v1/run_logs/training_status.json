@@ -1,0 +1,29 @@
+{
+    "BossInference": {
+        "checkpoints": [
+            {
+                "steps": 140820,
+                "file_path": "results\\BossInference_engage_v1\\BossInference\\BossInference-140820.onnx",
+                "reward": 6.571131706237793,
+                "creation_time": 1779251657.669274,
+                "auxillary_file_paths": [
+                    "results\\BossInference_engage_v1\\BossInference\\BossInference-140820.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 140820,
+            "file_path": "results\\BossInference_engage_v1\\BossInference.onnx",
+            "reward": 6.571131706237793,
+            "creation_time": 1779251657.669274,
+            "auxillary_file_paths": [
+                "results\\BossInference_engage_v1\\BossInference\\BossInference-140820.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.2.2+cu121"
+    }
+}

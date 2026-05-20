@@ -5,6 +5,65 @@
 
 ---
 
+## 3단계 커리큘럼 학습 — Touch/Engage 이동 모드 + TrainingMode enum
+**변경일:** 2026-05-20
+
+### 변경 사유
+Touch(기초 접근) → Engage(고도화 포지셔닝) → Combat(전투) 3단계 커리큘럼 학습 구조 도입. 동일 네트워크(129ch obs, [5] action) 유지하여 단계 간 가중치 carry-over. 기존 `_touchOnlyMode` bool → `BossTrainingMode` enum 전환.
+
+### 변경 내용
+
+**BossInferenceAgent.cs:**
+- `BossTrainingMode` enum 추가: `{Combat, Touch, Engage}`
+- `_touchOnlyMode` bool → `[SerializeField] private BossTrainingMode _trainingMode` 교체
+- Helper properties: `IsCombatMode`, `IsTouchMode`, `IsEngageMode`, `UsesCombatSystems`
+- Touch 모드 필드: `_touchEpisodeDuration=30f`, `_proximityRadius=5f`, `_doubleTouchWindow=3f`, `_touchProgressWeight=0.02f`, `_touchIdlePenalty=0.005f`, `_touchMinMoveDelta=0.05f`
+- Touch 상태: `_p1Touched`, `_p2Touched`, `_p1TouchTime`, `_p2TouchTime`, `_prevTouchMetric`, `_prevBossPos`, `_prevPosValid`, `_touchSuccessCount`, `_touchFastCount`
+- `ResetTouchState()`: 터치 추적 변수 초기화
+- `ApplyTouchRewards()`: 거리합 진행 보상, 터치 +0.5, 빠른 더블터치 +0.5, 정지 패널티
+- `CheckTouchTermination()`: OOB -1, 30s 타임아웃 (없음=-0.5, 부분=-0.2)
+- Engage 모드 필드: `_engageRangeMin=3f`, `_engageRangeMax=8f`, `_engageDotThreshold=0.5f`, `_pressurePointsMax=10f`, `_pressureDrainRate=1f`, `_engageEpisodeDuration=90f`, `_engageFarPenaltyDist=15f`
+- Engage 상태: `_p1PressureHP`, `_p2PressureHP`, `_p1WasEngaged`, `_p2WasEngaged`, `_lastEngageTickTime`, `_engageSuccessCount`
+- `ResetEngageState()`: 압박 HP / engaged 플래그 / tick 시간 초기화
+- `IsEngaged()`: 거리 [min,max] AND dot ≥ threshold 확인
+- `ApplyEngageRewards()`: dt 기반 — engage +0.01/s per player, both +0.02/s, transition +0.1, pressure drain +0.05/pt, success +0.5, far penalty -0.005/s, idle -0.005/s
+- `CheckEngageTermination()`: OOB -1, 타임아웃 잔여 HP 비례 패널티
+- `OnEpisodeBegin()`: 모드별 분기 — AutoCast는 Combat에서만 활성, Touch/Engage는 `ResetTouchState`/`ResetEngageState`
+- `OnActionReceived()`: switch(_trainingMode) — Touch→ApplyTouchRewards+CheckTouchTermination, Engage→ApplyEngageRewards+CheckEngageTermination, Combat→기존
+- `AssignPools()`, `AssignPlayerProfile()`: `UsesCombatSystems` 가드로 Touch/Engage 시 스킬 할당 스킵
+- `ResetState()`: 스킬/executor/bias 리셋 `UsesCombatSystems` 조건부
+- `WriteDiscreteActionMask()`: `!UsesCombatSystems` 시 early return
+- 에피소드 로깅 추가: 시작/종료, 페이즈 전환 + 배율 값, 플레이어 사망
+- `_playerSkillPools` 필드 제거 (dead code)
+- `SetPlayersFrozenForTouch` / `FreezeForTouch` 메서드 제거 (플레이어 BT 유지)
+
+**BossAutoCastHelper.cs:**
+- `EmitTelemetry()` HIT/MISS 로깅 추가 (hit count + distance)
+
+**TrainingSkillManager.cs:**
+- `UnlockNextSlot()` 스킬 언락 로깅 추가 (skill name, slot#, total)
+
+**BossInference_touch_config.yaml (신규):**
+- PPO, batch 512, buffer 5120, gamma 0.99, 5M steps, time_horizon 512, hidden 256×3
+
+**BossInference_engage_config.yaml (신규):**
+- PPO, batch 1024, buffer 10240, gamma 0.995, 10M steps, time_horizon 1024, hidden 256×3
+
+**씬 Inspector 수정 (Chapter1.unity):**
+- BossObservationCollector._maxBurstDmg: 120→80
+- Player 1P/2P TrainingSkillManager: _maxUnlockCount 3→4, _unlockInterval 15→180
+- SpecializedBossAgent 컴포넌트 (Train) Boss에서 제거
+
+### 커리큘럼 학습 명령어
+1. Touch: `mlagents-learn BossInference_touch_config.yaml --run-id=BossInference_touch_v1`
+2. Engage: `mlagents-learn BossInference_engage_config.yaml --initialize-from=BossInference_touch_v1 --run-id=BossInference_engage_v1`
+3. Combat: `mlagents-learn BossInference_config.yaml --initialize-from=BossInference_engage_v1 --run-id=BossInference_v1`
+
+### 검증 결과
+- 컴파일 에러 0, 워닝 0
+
+---
+
 ## 텔레그래프 duration 시스템 + 드래프트 cadence 수정
 **변경일:** 2026-05-19
 
